@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { LoginForm } from "./login-form"
 import { SignupForm } from "./signup-form"
 import { OnboardingFlow } from "./onboarding-flow"
@@ -14,16 +14,31 @@ interface AuthFlowProps {
 export function AuthFlow({ onAuthSuccess = () => {} }: AuthFlowProps) {
   const [currentStep, setCurrentStep] = useState<AuthStep>("login")
   const [userEmail, setUserEmail] = useState("")
+  const [loading, setLoading] = useState(false)
+
+  const checkOnboardingStatus = async (email: string) => {
+    try {
+      setLoading(true)
+      const res = await fetch(`/api/user/status?email=${encodeURIComponent(email)}`)
+      const data = await res.json()
+
+      if (data.onboardingCompleted) {
+        localStorage.setItem("trika_onboarding_complete", "true") // Optional caching
+        onAuthSuccess()
+      } else {
+        setCurrentStep("onboarding")
+      }
+    } catch (err) {
+      console.error("Failed to check onboarding status:", err)
+      setCurrentStep("onboarding")
+    } finally {
+      setLoading(false)
+    }
+  }
 
   const handleLoginSuccess = (email: string) => {
     setUserEmail(email)
-    // Check if user needs onboarding
-    const onboardingComplete = localStorage.getItem("trika_onboarding_complete")
-    if (onboardingComplete) {
-      onAuthSuccess()
-    } else {
-      setCurrentStep("onboarding")
-    }
+    checkOnboardingStatus(email)
   }
 
   const handleSignupSuccess = (email: string) => {
@@ -34,6 +49,10 @@ export function AuthFlow({ onAuthSuccess = () => {} }: AuthFlowProps) {
   const handleOnboardingComplete = () => {
     localStorage.setItem("trika_onboarding_complete", "true")
     onAuthSuccess()
+  }
+
+  if (loading) {
+    return <div className="flex items-center justify-center h-screen text-lg">Checking your setup...</div>
   }
 
   return (

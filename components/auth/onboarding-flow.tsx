@@ -76,21 +76,37 @@ export function OnboardingFlow({ userEmail, onComplete }: OnboardingFlowProps) {
     }))
   }
 
-  const handleNext = async () => {
-    if (currentStep < steps.length) {
-      setCurrentStep(currentStep + 1)
-    } else {
-      setIsLoading(true)
-      // Simulate API call to save onboarding data
-      await new Promise((resolve) => setTimeout(resolve, 2000))
+const handleNext = async () => {
+  if (currentStep < steps.length) {
+    setCurrentStep(currentStep + 1)
+  } else {
+    setIsLoading(true)
 
-      // Store onboarding data
+    try {
+      const res = await fetch("/api/onboarding/update", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          email: userEmail,
+          onboardingData,
+        }),
+      })
+
+      const result = await res.json()
+      if (!res.ok) throw new Error(result.error || "Failed to save onboarding data")
+
+      // Optionally store locally
       localStorage.setItem("trika_onboarding_data", JSON.stringify(onboardingData))
 
       setIsLoading(false)
       onComplete()
+    } catch (err) {
+      console.error("Failed to complete onboarding:", err)
+      setIsLoading(false)
     }
   }
+}
+
 
   const handlePrevious = () => {
     if (currentStep > 1) {

@@ -30,44 +30,56 @@ export function SignupForm({ onSignupSuccess, onSwitchToLogin }: SignupFormProps
   const [error, setError] = useState("")
   const [agreedToTerms, setAgreedToTerms] = useState(false)
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault()
-    setIsLoading(true)
-    setError("")
-
-    // Validation
-    if (formData.password !== formData.confirmPassword) {
-      setError("Passwords do not match")
-      setIsLoading(false)
-      return
-    }
-
-    if (!agreedToTerms) {
-      setError("Please agree to the Terms of Service and Privacy Policy")
-      setIsLoading(false)
-      return
-    }
-
-    // Simulate API call
-    try {
-      await new Promise((resolve) => setTimeout(resolve, 2000))
-
-      // Store auth token
-      localStorage.setItem("trika_auth_token", "demo_token_" + Date.now())
-      localStorage.setItem("trika_user_email", formData.email)
-      localStorage.setItem("trika_user_name", `${formData.firstName} ${formData.lastName}`)
-
-      onSignupSuccess(formData.email)
-    } catch (err) {
-      setError("Something went wrong. Please try again.")
-    } finally {
-      setIsLoading(false)
-    }
-  }
-
   const handleInputChange = (field: string, value: string) => {
     setFormData((prev) => ({ ...prev, [field]: value }))
   }
+
+const handleSubmit = async (e: React.FormEvent) => {
+  e.preventDefault();
+  setIsLoading(true);
+  setError("");
+
+  if (formData.password !== formData.confirmPassword) {
+    setError("Passwords do not match");
+    setIsLoading(false);
+    return;
+  }
+
+  if (!agreedToTerms) {
+    setError("Please agree to the Terms");
+    setIsLoading(false);
+    return;
+  }
+
+  try {
+    const res = await fetch("/api/auth/signup", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        firstName: formData.firstName,
+        lastName: formData.lastName,
+        email: formData.email,
+        password: formData.password,
+      }),
+    });
+
+    const data = await res.json();
+
+    if (!res.ok) {
+      throw new Error(data.error || "Signup failed");
+    }
+
+    localStorage.setItem("trika_auth_token", "demo_token_" + Date.now());
+    localStorage.setItem("trika_user_email", data.user.email);
+    localStorage.setItem("trika_user_name", data.user.name);
+
+    onSignupSuccess(data.user.email);
+  } catch (err: any) {
+    setError(err.message);
+  } finally {
+    setIsLoading(false);
+  }
+};
 
   return (
     <div className="min-h-screen flex items-center justify-center p-4">
@@ -225,7 +237,7 @@ export function SignupForm({ onSignupSuccess, onSwitchToLogin }: SignupFormProps
             </form>
 
             <div className="space-y-4">
-              <div className="relative">
+              {/* <div className="relative">
                 <Separator />
                 <span className="absolute left-1/2 top-1/2 transform -translate-x-1/2 -translate-y-1/2 bg-white px-2 text-sm text-gray-500">
                   or sign up with
@@ -260,7 +272,7 @@ export function SignupForm({ onSignupSuccess, onSwitchToLogin }: SignupFormProps
                   </svg>
                   Facebook
                 </Button>
-              </div>
+              </div> */}
             </div>
 
             <div className="text-center">

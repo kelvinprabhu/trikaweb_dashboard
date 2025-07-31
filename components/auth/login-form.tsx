@@ -22,36 +22,37 @@ export function LoginForm({ onLoginSuccess, onSwitchToSignup }: LoginFormProps) 
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState("")
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault()
-    setIsLoading(true)
-    setError("")
+const handleSubmit = async (e: React.FormEvent) => {
+  e.preventDefault();
+  setIsLoading(true);
+  setError("");
 
-    // Simulate API call
-    try {
-      await new Promise((resolve, reject) => {
-        setTimeout(() => {
-          if (email === "demo@trika.ai" && password === "demo123") {
-            resolve(true)
-          } else if (email && password) {
-            resolve(true) // Accept any valid email/password for demo
-          } else {
-            reject(new Error("Invalid credentials"))
-          }
-        }, 1500)
-      })
+  try {
+    const res = await fetch("/api/auth/login", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ email, password }),
+    });
 
-      // Store auth token
-      localStorage.setItem("trika_auth_token", "demo_token_" + Date.now())
-      localStorage.setItem("trika_user_email", email)
+    const data = await res.json();
 
-      onLoginSuccess(email)
-    } catch (err) {
-      setError("Invalid email or password. Try demo@trika.ai / demo123")
-    } finally {
-      setIsLoading(false)
+    if (!res.ok) {
+      throw new Error(data.error || "Login failed");
     }
+
+    // Save token and user info (replace with real token handling later)
+    localStorage.setItem("trika_auth_token", "demo_token_" + Date.now());
+    localStorage.setItem("trika_user_email", data.user.email);
+    localStorage.setItem("trika_user_name", data.user.name);
+
+    onLoginSuccess(data.user.email);
+  } catch (err: any) {
+    setError(err.message || "Something went wrong.");
+  } finally {
+    setIsLoading(false);
   }
+};
+
 
   return (
     <div className="min-h-screen flex items-center justify-center p-4">
@@ -149,7 +150,7 @@ export function LoginForm({ onLoginSuccess, onSwitchToSignup }: LoginFormProps) 
                 )}
               </Button>
             </form>
-
+{/* 
             <div className="space-y-4">
               <div className="relative">
                 <Separator />
@@ -187,7 +188,7 @@ export function LoginForm({ onLoginSuccess, onSwitchToSignup }: LoginFormProps) 
                   Facebook
                 </Button>
               </div>
-            </div>
+            </div> */}
 
             <div className="text-center">
               <p className="text-sm text-gray-600">
@@ -198,12 +199,12 @@ export function LoginForm({ onLoginSuccess, onSwitchToSignup }: LoginFormProps) 
               </p>
             </div>
 
-            {/* Demo Credentials */}
+            {/* Demo Credentials
             <div className="p-3 bg-blue-50 border border-blue-200 rounded-lg">
               <p className="text-blue-800 text-sm font-medium mb-1">Demo Credentials:</p>
               <p className="text-blue-700 text-xs">Email: demo@trika.ai</p>
               <p className="text-blue-700 text-xs">Password: demo123</p>
-            </div>
+            </div> */}
           </CardContent>
         </Card>
       </div>

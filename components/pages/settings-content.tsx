@@ -1,31 +1,53 @@
-"use client"
+"use client";
 
-import { Progress } from "@/components/ui/progress"
+import { Progress } from "@/components/ui/progress";
 
-import { useState } from "react"
-import { User, Bell, Shield, Palette, Database, HelpCircle, LogOut, Smartphone, Monitor, Watch } from "lucide-react"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
-import { Switch } from "@/components/ui/switch"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
-import { EcosystemSync } from "@/components/ecosystem-sync"
+import { useEffect, useState } from "react";
+import {
+  User,
+  Bell,
+  Shield,
+  Palette,
+  Database,
+  HelpCircle,
+  LogOut,
+  Smartphone,
+  Monitor,
+  Watch,
+} from "lucide-react";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Switch } from "@/components/ui/switch";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { EcosystemSync } from "@/components/ecosystem-sync";
 
 const userProfile = {
-  name: "Alex Johnson",
-  email: "alex.johnson@email.com",
-  phone: "+1 (555) 123-4567",
-  dateOfBirth: "1990-05-15",
-  gender: "Male",
-  height: "175",
-  weight: "70",
-  fitnessLevel: "Intermediate",
-  goal: "Build Muscle",
-  activityLevel: "Moderate",
-}
+  firstName: "",
+  lastName: "",
+  email: "",
+  gender: "",
+  height: "",
+  weight: "",
+  fitnessLevel: "",
+  goal: "",
+  activityLevel: "",
+};
 
 const notificationSettings = {
   workoutReminders: true,
@@ -36,7 +58,7 @@ const notificationSettings = {
   emailNotifications: true,
   pushNotifications: true,
   smsNotifications: false,
-}
+};
 
 const privacySettings = {
   profileVisibility: "Friends",
@@ -44,12 +66,45 @@ const privacySettings = {
   dataCollection: true,
   thirdPartySharing: false,
   locationTracking: true,
-}
+};
 
-export function SettingsContent() {
-  const [profile, setProfile] = useState(userProfile)
-  const [notifications, setNotifications] = useState(notificationSettings)
-  const [privacy, setPrivacy] = useState(privacySettings)
+export function SettingsContent({ email }: { email: string }) {
+  const [profile, setProfile] = useState(userProfile);
+  const [notifications, setNotifications] = useState(notificationSettings);
+  const [privacy, setPrivacy] = useState(privacySettings);
+  // const [profile, setProfile] = useState()
+  useEffect(() => {
+    const fetchProfile = async () => {
+      const res = await fetch(`/api/user/profile?email=${email}`);
+      const data = await res.json();
+      if (res.ok) {
+        setProfile(data);
+        console.log("profile" + data);
+      } else {
+        console.error("Failed to fetch profile", data);
+      }
+    };
+    fetchProfile();
+  }, [email]);
+const handleSubmit = async () => {
+  try {
+    const response = await fetch("/api/user", {
+      method: "PATCH", // or "PUT"
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(profile),
+    });
+
+    if (response.ok) {
+      console.log("Profile updated successfully");
+    } else {
+      console.error("Failed to update profile");
+    }
+  } catch (error) {
+    console.error("An error occurred:", error);
+  }
+};
 
   return (
     <div className="w-full h-full space-y-6">
@@ -62,9 +117,9 @@ export function SettingsContent() {
       <Tabs defaultValue="profile" className="space-y-6">
         <TabsList className="grid w-full grid-cols-7">
           <TabsTrigger value="profile">Profile</TabsTrigger>
-          <TabsTrigger value="notifications">Notifications</TabsTrigger>
+          {/* <TabsTrigger value="notifications">Notifications</TabsTrigger>
           <TabsTrigger value="privacy">Privacy</TabsTrigger>
-          <TabsTrigger value="appearance">Appearance</TabsTrigger>
+          <TabsTrigger value="appearance">Appearance</TabsTrigger> */}
           <TabsTrigger value="data">Data</TabsTrigger>
           <TabsTrigger value="ecosystem">Ecosystem</TabsTrigger>
           <TabsTrigger value="support">Support</TabsTrigger>
@@ -77,10 +132,12 @@ export function SettingsContent() {
                 <User className="w-5 h-5" />
                 Profile Information
               </CardTitle>
-              <CardDescription>Update your personal information and fitness details</CardDescription>
+              <CardDescription>
+                Update your personal information and fitness details
+              </CardDescription>
             </CardHeader>
             <CardContent className="space-y-6">
-              <div className="flex items-center gap-6">
+              {/* <div className="flex items-center gap-6">
                 <Avatar className="w-20 h-20">
                   <AvatarImage src="/placeholder.svg?height=80&width=80" />
                   <AvatarFallback className="bg-gradient-to-r from-red-500 to-blue-500 text-white text-xl">
@@ -89,18 +146,33 @@ export function SettingsContent() {
                 </Avatar>
                 <div>
                   <Button variant="outline">Change Photo</Button>
-                  <p className="text-sm text-gray-500 mt-2">JPG, PNG or GIF. Max size 2MB.</p>
+                  <p className="text-sm text-gray-500 mt-2">
+                    JPG, PNG or GIF. Max size 2MB.
+                  </p>
                 </div>
-              </div>
+              </div> */}
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div className="space-y-2">
-                  <Label htmlFor="name">Full Name</Label>
+                  <Label htmlFor="name">First Name</Label>
                   <Input
                     id="name"
                     className="dark-input"
-                    value={profile.name}
-                    onChange={(e) => setProfile({ ...profile, name: e.target.value })}
+                    value={profile.firstName}
+                    onChange={(e) =>
+                      setProfile({ ...profile, firstName: e.target.value })
+                    }
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="name">Last Name</Label>
+                  <Input
+                    id="name"
+                    className="dark-input"
+                    value={profile.lastName}
+                    onChange={(e) =>
+                      setProfile({ ...profile, lastName: e.target.value })
+                    }
                   />
                 </div>
                 <div className="space-y-2">
@@ -110,42 +182,31 @@ export function SettingsContent() {
                     type="email"
                     className="dark-input"
                     value={profile.email}
-                    onChange={(e) => setProfile({ ...profile, email: e.target.value })}
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="phone">Phone</Label>
-                  <Input
-                    id="phone"
-                    className="dark-input"
-                    value={profile.phone}
-                    onChange={(e) => setProfile({ ...profile, phone: e.target.value })}
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="dob">Date of Birth</Label>
-                  <Input
-                    id="dob"
-                    type="date"
-                    className="dark-input"
-                    value={profile.dateOfBirth}
-                    onChange={(e) => setProfile({ ...profile, dateOfBirth: e.target.value })}
+                    onChange={(e) =>
+                      setProfile({ ...profile, email: e.target.value })
+                    }
                   />
                 </div>
               </div>
-
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <div className="space-y-2">
                   <Label>Gender</Label>
-                  <Select value={profile.gender} onValueChange={(value) => setProfile({ ...profile, gender: value })}>
+                  <Select
+                    value={profile.gender}
+                    onValueChange={(value) =>
+                      setProfile({ ...profile, gender: value })
+                    }
+                  >
                     <SelectTrigger className="dark-input">
-                      <SelectValue />
+                      <SelectValue placeholder="Select Gender" />
                     </SelectTrigger>
                     <SelectContent className="dark-input">
                       <SelectItem value="Male">Male</SelectItem>
                       <SelectItem value="Female">Female</SelectItem>
                       <SelectItem value="Other">Other</SelectItem>
-                      <SelectItem value="Prefer not to say">Prefer not to say</SelectItem>
+                      <SelectItem value="Prefer not to say">
+                        Prefer not to say
+                      </SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
@@ -156,7 +217,9 @@ export function SettingsContent() {
                     type="number"
                     className="dark-input"
                     value={profile.height}
-                    onChange={(e) => setProfile({ ...profile, height: e.target.value })}
+                    onChange={(e) =>
+                      setProfile({ ...profile, height: e.target.value })
+                    }
                   />
                 </div>
                 <div className="space-y-2">
@@ -166,7 +229,9 @@ export function SettingsContent() {
                     type="number"
                     className="dark-input"
                     value={profile.weight}
-                    onChange={(e) => setProfile({ ...profile, weight: e.target.value })}
+                    onChange={(e) =>
+                      setProfile({ ...profile, weight: e.target.value })
+                    }
                   />
                 </div>
               </div>
@@ -176,7 +241,9 @@ export function SettingsContent() {
                   <Label>Fitness Level</Label>
                   <Select
                     value={profile.fitnessLevel}
-                    onValueChange={(value) => setProfile({ ...profile, fitnessLevel: value })}
+                    onValueChange={(value) =>
+                      setProfile({ ...profile, fitnessLevel: value })
+                    }
                   >
                     <SelectTrigger className="dark-input">
                       <SelectValue />
@@ -190,7 +257,12 @@ export function SettingsContent() {
                 </div>
                 <div className="space-y-2">
                   <Label>Primary Goal</Label>
-                  <Select value={profile.goal} onValueChange={(value) => setProfile({ ...profile, goal: value })}>
+                  <Select
+                    value={profile.goal}
+                    onValueChange={(value) =>
+                      setProfile({ ...profile, goal: value })
+                    }
+                  >
                     <SelectTrigger className="dark-input">
                       <SelectValue />
                     </SelectTrigger>
@@ -205,7 +277,9 @@ export function SettingsContent() {
                   <Label>Activity Level</Label>
                   <Select
                     value={profile.activityLevel}
-                    onValueChange={(value) => setProfile({ ...profile, activityLevel: value })}
+                    onValueChange={(value) =>
+                      setProfile({ ...profile, activityLevel: value })
+                    }
                   >
                     <SelectTrigger className="dark-input">
                       <SelectValue />
@@ -220,7 +294,14 @@ export function SettingsContent() {
                 </div>
               </div>
 
-              <Button className="bg-gradient-to-r from-red-500 to-blue-500">Save Changes</Button>
+              <Button
+  className="bg-gradient-to-r from-red-500 to-blue-500"
+  onClick={handleSubmit}
+  type="button"
+>
+  Save Changes
+</Button>
+
             </CardContent>
           </Card>
         </TabsContent>
@@ -232,83 +313,146 @@ export function SettingsContent() {
                 <Bell className="w-5 h-5" />
                 Notification Preferences
               </CardTitle>
-              <CardDescription>Choose what notifications you want to receive</CardDescription>
+              <CardDescription>
+                Choose what notifications you want to receive
+              </CardDescription>
             </CardHeader>
             <CardContent className="space-y-6">
               <div className="space-y-4">
                 <div className="flex items-center justify-between">
                   <div>
-                    <h3 className="font-medium text-white">Workout Reminders</h3>
-                    <p className="text-sm text-slate-400">Get notified about scheduled workouts</p>
+                    <h3 className="font-medium text-white">
+                      Workout Reminders
+                    </h3>
+                    <p className="text-sm text-slate-400">
+                      Get notified about scheduled workouts
+                    </p>
                   </div>
                   <Switch
                     checked={notifications.workoutReminders}
-                    onCheckedChange={(checked) => setNotifications({ ...notifications, workoutReminders: checked })}
+                    onCheckedChange={(checked) =>
+                      setNotifications({
+                        ...notifications,
+                        workoutReminders: checked,
+                      })
+                    }
                   />
                 </div>
                 <div className="flex items-center justify-between">
                   <div>
                     <h3 className="font-medium text-white">Habit Tracking</h3>
-                    <p className="text-sm text-slate-400">Daily reminders for your habits</p>
+                    <p className="text-sm text-slate-400">
+                      Daily reminders for your habits
+                    </p>
                   </div>
                   <Switch
                     checked={notifications.habitTracking}
-                    onCheckedChange={(checked) => setNotifications({ ...notifications, habitTracking: checked })}
+                    onCheckedChange={(checked) =>
+                      setNotifications({
+                        ...notifications,
+                        habitTracking: checked,
+                      })
+                    }
                   />
                 </div>
                 <div className="flex items-center justify-between">
                   <div>
-                    <h3 className="font-medium text-white">Challenge Updates</h3>
-                    <p className="text-sm text-slate-400">Updates on your active challenges</p>
+                    <h3 className="font-medium text-white">
+                      Challenge Updates
+                    </h3>
+                    <p className="text-sm text-slate-400">
+                      Updates on your active challenges
+                    </p>
                   </div>
                   <Switch
                     checked={notifications.challengeUpdates}
-                    onCheckedChange={(checked) => setNotifications({ ...notifications, challengeUpdates: checked })}
+                    onCheckedChange={(checked) =>
+                      setNotifications({
+                        ...notifications,
+                        challengeUpdates: checked,
+                      })
+                    }
                   />
                 </div>
                 <div className="flex items-center justify-between">
                   <div>
                     <h3 className="font-medium text-white">Weekly Reports</h3>
-                    <p className="text-sm text-slate-400">Summary of your weekly progress</p>
+                    <p className="text-sm text-slate-400">
+                      Summary of your weekly progress
+                    </p>
                   </div>
                   <Switch
                     checked={notifications.weeklyReports}
-                    onCheckedChange={(checked) => setNotifications({ ...notifications, weeklyReports: checked })}
+                    onCheckedChange={(checked) =>
+                      setNotifications({
+                        ...notifications,
+                        weeklyReports: checked,
+                      })
+                    }
                   />
                 </div>
               </div>
 
               <div className="border-t pt-6">
-                <h3 className="font-medium mb-4 text-white">Delivery Methods</h3>
+                <h3 className="font-medium mb-4 text-white">
+                  Delivery Methods
+                </h3>
                 <div className="space-y-4">
                   <div className="flex items-center justify-between">
                     <div>
-                      <h4 className="font-medium text-white">Email Notifications</h4>
-                      <p className="text-sm text-slate-400">Receive notifications via email</p>
+                      <h4 className="font-medium text-white">
+                        Email Notifications
+                      </h4>
+                      <p className="text-sm text-slate-400">
+                        Receive notifications via email
+                      </p>
                     </div>
                     <Switch
                       checked={notifications.emailNotifications}
-                      onCheckedChange={(checked) => setNotifications({ ...notifications, emailNotifications: checked })}
+                      onCheckedChange={(checked) =>
+                        setNotifications({
+                          ...notifications,
+                          emailNotifications: checked,
+                        })
+                      }
                     />
                   </div>
                   <div className="flex items-center justify-between">
                     <div>
-                      <h4 className="font-medium text-white">Push Notifications</h4>
-                      <p className="text-sm text-slate-400">Receive push notifications on your device</p>
+                      <h4 className="font-medium text-white">
+                        Push Notifications
+                      </h4>
+                      <p className="text-sm text-slate-400">
+                        Receive push notifications on your device
+                      </p>
                     </div>
                     <Switch
                       checked={notifications.pushNotifications}
-                      onCheckedChange={(checked) => setNotifications({ ...notifications, pushNotifications: checked })}
+                      onCheckedChange={(checked) =>
+                        setNotifications({
+                          ...notifications,
+                          pushNotifications: checked,
+                        })
+                      }
                     />
                   </div>
                   <div className="flex items-center justify-between">
                     <div>
-                      <h4 className="font-medium text-white">SMS Notifications</h4>
-                      <p className="text-sm text-slate-400">Receive notifications via text message</p>
+                      <h4 className="font-medium text-white">
+                        SMS Notifications
+                      </h4>
+                      <p className="text-sm text-slate-400">
+                        Receive notifications via text message
+                      </p>
                     </div>
                     <Switch
                       checked={notifications.smsNotifications}
-                      onCheckedChange={(checked) => setNotifications({ ...notifications, smsNotifications: checked })}
+                      onCheckedChange={(checked) =>
+                        setNotifications({
+                          ...notifications,
+                          smsNotifications: checked,
+                        })
+                      }
                     />
                   </div>
                 </div>
@@ -317,7 +461,7 @@ export function SettingsContent() {
           </Card>
         </TabsContent>
 
-        <TabsContent value="privacy" className="space-y-6">
+        {/* <TabsContent value="privacy" className="space-y-6">
           <Card className="dark-card">
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
@@ -398,9 +542,9 @@ export function SettingsContent() {
               </div>
             </CardContent>
           </Card>
-        </TabsContent>
+        </TabsContent> */}
 
-        <TabsContent value="appearance" className="space-y-6">
+        {/* <TabsContent value="appearance" className="space-y-6">
           <Card className="dark-card">
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
@@ -458,7 +602,7 @@ export function SettingsContent() {
               </div>
             </CardContent>
           </Card>
-        </TabsContent>
+        </TabsContent> */}
 
         <TabsContent value="data" className="space-y-6">
           <Card className="dark-card">
@@ -467,12 +611,16 @@ export function SettingsContent() {
                 <Database className="w-5 h-5" />
                 Data Management
               </CardTitle>
-              <CardDescription>Manage your data and integrations</CardDescription>
+              <CardDescription>
+                Manage your data and integrations
+              </CardDescription>
             </CardHeader>
             <CardContent className="space-y-6">
               <div className="space-y-4">
                 <div>
-                  <h3 className="font-medium mb-2 text-white">Connected Apps</h3>
+                  <h3 className="font-medium mb-2 text-white">
+                    Connected Apps
+                  </h3>
                   <div className="space-y-3">
                     <div className="flex items-center justify-between p-3 border rounded-lg">
                       <div className="flex items-center gap-3">
@@ -481,7 +629,9 @@ export function SettingsContent() {
                         </div>
                         <div>
                           <p className="font-medium text-white">Apple Health</p>
-                          <p className="text-sm text-slate-400">Syncing health data</p>
+                          <p className="text-sm text-slate-400">
+                            Syncing health data
+                          </p>
                         </div>
                       </div>
                       <Button variant="outline" size="sm">
@@ -495,7 +645,9 @@ export function SettingsContent() {
                         </div>
                         <div>
                           <p className="font-medium text-white">Google Fit</p>
-                          <p className="text-sm text-slate-400">Activity tracking</p>
+                          <p className="text-sm text-slate-400">
+                            Activity tracking
+                          </p>
                         </div>
                       </div>
                       <Button variant="outline" size="sm">
@@ -545,24 +697,32 @@ export function SettingsContent() {
                   <Smartphone className="w-5 h-5" />
                   Cross-Platform Features
                 </CardTitle>
-                <CardDescription>Features optimized for different devices</CardDescription>
+                <CardDescription>
+                  Features optimized for different devices
+                </CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                   <div className="p-4 border rounded-lg text-center">
                     <Monitor className="w-8 h-8 mx-auto mb-2 text-blue-500" />
                     <h3 className="font-medium text-white">Web Dashboard</h3>
-                    <p className="text-sm text-slate-400">Full analytics and management</p>
+                    <p className="text-sm text-slate-400">
+                      Full analytics and management
+                    </p>
                   </div>
                   <div className="p-4 border rounded-lg text-center">
                     <Smartphone className="w-8 h-8 mx-auto mb-2 text-green-500" />
                     <h3 className="font-medium text-white">Mobile App</h3>
-                    <p className="text-sm text-slate-400">On-the-go tracking and workouts</p>
+                    <p className="text-sm text-slate-400">
+                      On-the-go tracking and workouts
+                    </p>
                   </div>
                   <div className="p-4 border rounded-lg text-center">
                     <Watch className="w-8 h-8 mx-auto mb-2 text-purple-500" />
                     <h3 className="font-medium text-white">Wearables</h3>
-                    <p className="text-sm text-slate-400">Real-time health monitoring</p>
+                    <p className="text-sm text-slate-400">
+                      Real-time health monitoring
+                    </p>
                   </div>
                 </div>
               </CardContent>
@@ -577,10 +737,12 @@ export function SettingsContent() {
                 <HelpCircle className="w-5 h-5" />
                 Help & Support
               </CardTitle>
-              <CardDescription>Get help and support for your account</CardDescription>
+              <CardDescription>
+                Get help and support for your account
+              </CardDescription>
             </CardHeader>
             <CardContent className="space-y-6">
-              <div className="space-y-3">
+              {/* <div className="space-y-3">
                 <Button variant="outline" className="w-full justify-start">
                   Help Center
                 </Button>
@@ -596,7 +758,7 @@ export function SettingsContent() {
                 <Button variant="outline" className="w-full justify-start">
                   Community Forum
                 </Button>
-              </div>
+              </div> */}
 
               <div className="border-t pt-6">
                 <h3 className="font-medium mb-4 text-white">About</h3>
@@ -625,5 +787,5 @@ export function SettingsContent() {
         </TabsContent>
       </Tabs>
     </div>
-  )
+  );
 }

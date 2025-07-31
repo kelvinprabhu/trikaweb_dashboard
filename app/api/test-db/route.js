@@ -7,8 +7,8 @@ export async function GET() {
     await connectDB();
 
     const testUser = await User.create({
-      username: "kelvin_test_user",
-      email: "kelvin@trika.ai",
+      username: "kelvin_user",
+      email: "kelvinnew@trika.ai",
       passwordHash: "dummyHash123",
       age: 25,
       weight: 70,
