@@ -26,6 +26,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { FormModal } from "@/components/forms/form-modal";
 import { HabitForm } from "@/components/forms/habit-form";
 import { DeleteConfirmation } from "@/components/forms/delete-confirmation";
+import { stringify } from "querystring";
 
 // const habits = [
 //   {
@@ -44,7 +45,17 @@ import { DeleteConfirmation } from "@/components/forms/delete-confirmation";
 //     description: "30-minute morning exercise routine",
 //   }
 // ]
+const today = new Date();
+const currentYear = today.getFullYear();
+const currentMonth = today.getMonth(); // 0-indexed
+const daysInMonth = new Date(currentYear, currentMonth + 1, 0).getDate(); // days in current month
+const todayDate = today.getDate();
 
+// Adjust start offset for Monday as first day of the week
+const rawStartDay = new Date(currentYear, currentMonth, 1).getDay();
+const firstDayOfMonth = (rawStartDay + 6) % 7;
+
+const totalCells = 35;
 const weekDays = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
 
 export function HabitsContent({ email }: { email: string }) {
@@ -74,19 +85,44 @@ export function HabitsContent({ email }: { email: string }) {
     ),
   };
   // Add these handler functions
-const handleAddHabit = async (data: any) => {
-  const res = await fetch("/api/habits/add", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ ...data, userEmail: email }),
-  })
-  const newHabit = await res.json()
-  if (res.ok) {
-    setHabits([...habits, newHabit])
-    setShowAddModal(false)
-  }
-}
+  const handleAddHabit = async (data: any) => {
+    try {
+      const res = await fetch("/api/habits/add", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          userEmail: email,
+          name: data.name,
+          description: data.description,
+          icon: data.icon,
+          category: data.category,
+          streak: data.streak,
+          bestStreak: data.bestStreak,
+          target: data.target,
+          frequency: data.frequency,
+          completedThisWeek: data.completedThisWeek,
+          totalWeeks: data.totalWeeks,
+          weeklyData: data.weeklyData,
+          monthlyCompletion: data.monthlyCompletion,
+        }),
+      });
 
+      console.warn("body" + JSON.stringify(res));
+      const newHabit = await res.json();
+
+      if (!res.ok) {
+        const errText = await res.text();
+        console.error("Add habit failed:", errText);
+        return;
+      }
+
+      // const newHabit = await res.json();
+      setHabits([...habits, newHabit]);
+      setShowAddModal(false);
+    } catch (error) {
+      console.error("Unexpected error:", error);
+    }
+  };
 
   const handleEditHabit = async (data: any) => {
     const res = await fetch(`/api/habits/${selectedHabit._id}`, {
@@ -212,7 +248,7 @@ const handleAddHabit = async (data: any) => {
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
             {habits.map((habit) => (
               <Card
-                key={habit.id}
+                key={habit._id}
                 className="dark-card hover:shadow-md transition-shadow"
               >
                 <CardHeader>
@@ -338,11 +374,13 @@ const handleAddHabit = async (data: any) => {
                   </div>
                 ))}
               </div>
+
               <div className="grid grid-cols-7 gap-2">
-                {Array.from({ length: 35 }, (_, i) => {
-                  const dayNumber = i - 6 + 1;
-                  const isCurrentMonth = dayNumber > 0 && dayNumber <= 31;
-                  const isToday = dayNumber === 15; // Mock today
+                {Array.from({ length: totalCells }, (_, i) => {
+                  const dayNumber = i - firstDayOfMonth + 1;
+                  const isCurrentMonth =
+                    dayNumber > 0 && dayNumber <= daysInMonth;
+                  const isToday = isCurrentMonth && dayNumber === todayDate;
 
                   return (
                     <div
@@ -361,7 +399,7 @@ const handleAddHabit = async (data: any) => {
                           <div className="space-y-1">
                             {habits.slice(0, 3).map((habit) => (
                               <div
-                                key={habit.id}
+                                key={habit._id}
                                 className={`w-2 h-2 rounded-full ${
                                   Math.random() > 0.3
                                     ? "bg-green-500"
@@ -392,7 +430,7 @@ const handleAddHabit = async (data: any) => {
               <CardContent>
                 <div className="space-y-4">
                   {habits.map((habit) => (
-                    <div key={habit.id} className="space-y-2">
+                    <div key={habit._id} className="space-y-2">
                       <div className="flex items-center justify-between">
                         <div className="flex items-center gap-2">
                           <span className="text-lg">{habit.icon}</span>
@@ -425,7 +463,7 @@ const handleAddHabit = async (data: any) => {
                 <div className="space-y-4">
                   {habits.map((habit) => (
                     <div
-                      key={habit.id}
+                      key={habit._id}
                       className="flex items-center justify-between p-3 bg-slate-800 rounded-lg"
                     >
                       <div className="flex items-center gap-3">

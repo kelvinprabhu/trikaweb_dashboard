@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useEffect, useState } from "react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
@@ -26,7 +26,18 @@ export function DashboardContent() {
   const [showTrikaVision, setShowTrikaVision] = useState(false)
   const [showSessionSummary, setShowSessionSummary] = useState(false)
   const [sessionData, setSessionData] = useState(null)
+  const [email, setEmail] = useState("")
+  const [username, setUsername] = useState("")
 
+  useEffect(() => {
+    const storedEmail = localStorage.getItem("trika_user_email")
+    const storedUsername = localStorage.getItem("trika_user_name")
+    if (storedEmail) setEmail(storedEmail)
+      if (storedUsername) setUsername(storedUsername)
+    
+  }, [])
+
+  if (!email) return <div>Loading...</div>
   const handleSessionComplete = (data: any) => {
     setSessionData(data)
     setShowSessionSummary(true)
@@ -38,7 +49,7 @@ export function DashboardContent() {
       <div className="bg-gradient-to-r from-blue-600 to-purple-600 rounded-2xl p-8 text-white">
         <div className="flex items-center justify-between">
           <div>
-            <h1 className="text-3xl font-bold mb-2">Welcome back, Alex!</h1>
+            <h1 className="text-3xl font-bold mb-2">Welcome back, {username}</h1>
             <p className="text-blue-100 mb-4">Ready to crush your fitness goals today?</p>
             <div className="flex items-center gap-4">
               <Badge variant="secondary" className="bg-white/20 text-white border-0">

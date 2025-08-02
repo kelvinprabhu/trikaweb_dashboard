@@ -1,19 +1,21 @@
 import mongoose from "mongoose";
 
-const ChallengeSchema = new mongoose.Schema({
-  title: String,
-  description: String,
-  durationDays: Number,
-  participants: [{ type: mongoose.Schema.Types.ObjectId, ref: "User" }],
-  progress: [
+const UserChallengeSchema = new mongoose.Schema({
+  userId: { type: mongoose.Schema.Types.ObjectId, ref: "User" },
+  challengeId: { type: mongoose.Schema.Types.ObjectId, ref: "GlobalChallenge" },
+
+  startDate: { type: Date, default: Date.now },
+  completedDays: { type: Number, default: 0 },
+  isCompleted: { type: Boolean, default: false },
+
+  // Optionally track daily logs:
+  logs: [
     {
-      user: { type: mongoose.Schema.Types.ObjectId, ref: "User" },
+      date: Date,
       completed: Boolean,
-      completionDate: Date,
     },
   ],
-  createdAt: { type: Date, default: Date.now },
 });
 
-export default mongoose.models.Challenge ||
-  mongoose.model("Challenge", ChallengeSchema);
+export default mongoose.models.UserChallenge ||
+  mongoose.model("UserChallenge", UserChallengeSchema);

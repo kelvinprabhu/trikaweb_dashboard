@@ -1,24 +1,17 @@
-// pages/api/habit/add.js
+import { NextRequest, NextResponse } from "next/server";
 import { connectDB } from "@/lib/mongodb";
-// pages/api/habit/add.js
 import Habit from "@/models/Habit";
 
-export default async function handler(req, res) {
-  if (req.method !== "POST") return res.status(405).end();
+export async function POST(req) {
   await connectDB();
 
-  const { userEmail, name, description, icon, category } = req.body;
-
   try {
-    const habit = await Habit.create({
-      userEmail,
-      name,
-      description,
-      icon,
-      category,
-    });
-    res.status(201).json(habit);
-  } catch (err) {
-    res.status(500).json({ error: "Failed to add habit" });
+    const body = await req.json();
+
+    const habit = await Habit.create(body);
+    return NextResponse.json(habit, { status: 201 });
+  } catch (error) {
+    console.error("Habit creation failed:", error);
+    return NextResponse.json({ error: "Failed to add habit" }, { status: 500 });
   }
 }

@@ -89,7 +89,23 @@ const ambientSounds = [
 ]
 
 export function MoodMeditationForm({ onSubmit, onCancel }: MoodMeditationFormProps) {
-  const [formData, setFormData] = useState({
+  interface FormData {
+    currentMood: string
+    energyLevel: number[]
+    stressLevel: number[]
+    selectedGoals: string[]
+    duration: number[]
+    binauralFrequency: string
+    ambientSounds: string[]
+    volume: number[]
+    includeGuidance: boolean
+    includeBreathing: boolean
+    personalIntention: string
+    reminderTime: string
+    sessionName: string
+  }
+
+  const [formData, setFormData] = useState<FormData>({
     currentMood: "",
     energyLevel: [5],
     stressLevel: [5],
@@ -123,6 +139,7 @@ export function MoodMeditationForm({ onSubmit, onCancel }: MoodMeditationFormPro
       estimatedEffectiveness: Math.floor(Math.random() * 20) + 80, // 80-100%
       sessionId: `mood_${Date.now()}`,
     }
+    console.warn(meditationData)
 
     try {
       await onSubmit(meditationData)
@@ -163,7 +180,7 @@ export function MoodMeditationForm({ onSubmit, onCancel }: MoodMeditationFormPro
       excited: "beta",
     }
 
-    return moodToFrequency[formData.currentMood] || "alpha"
+    return moodToFrequency[formData.currentMood as keyof typeof moodToFrequency] || "alpha"
   }
 
   const recommendedFreq = getRecommendedFrequency()

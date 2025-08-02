@@ -398,9 +398,12 @@ export function MeditationContent() {
       </Card>
 
       <Tabs defaultValue="sessions" className="space-y-4 lg:space-y-6">
-        <TabsList className="grid w-full grid-cols-4 lg:grid-cols-5">
+        <TabsList className="grid w-full grid-cols-4 lg:grid-cols-6">
           <TabsTrigger value="sessions" className="text-xs lg:text-sm">
             Sessions
+          </TabsTrigger>
+                    <TabsTrigger value="custom" className="text-xs lg:text-sm">
+            Custom Sessions
           </TabsTrigger>
           <TabsTrigger value="breathing" className="text-xs lg:text-sm">
             Breathing
@@ -464,7 +467,7 @@ export function MeditationContent() {
                     </div>
 
                     {/* Add edit/delete options to session cards by updating the "Start" button section */}
-                    <div className="flex gap-2 pt-2">
+                    {/* <div className="flex gap-2 pt-2">
                       <Button
                         size="sm"
                         className="flex-1 bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600"
@@ -479,11 +482,83 @@ export function MeditationContent() {
                       <Button variant="outline" size="sm" onClick={() => openDeleteSessionModal(session)}>
                         <Trash2 className="w-3 h-3 lg:w-4 lg:h-4" />
                       </Button>
-                    </div>
+                    </div> */}
                   </div>
                 </CardContent>
               </Card>
             ))}
+           
+          </div>
+        </TabsContent>
+        <TabsContent value="custom" className="space-y-4 lg:space-y-6">
+          <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-4 lg:gap-6">
+            {meditationSessions.map((session) => (
+              <Card key={session.id} className="hover:shadow-lg transition-all duration-300 overflow-hidden">
+                <div className={`h-2 bg-gradient-to-r ${session.color}`}></div>
+                <CardHeader className="p-4 lg:p-6">
+                  <div className="flex items-start justify-between">
+                    <div className="flex items-center gap-3">
+                      <span className="text-2xl lg:text-3xl">{session.image}</span>
+                      <div className="min-w-0">
+                        <CardTitle className="text-base lg:text-lg truncate">{session.title}</CardTitle>
+                        <CardDescription className="text-xs lg:text-sm">{session.description}</CardDescription>
+                      </div>
+                    </div>
+                  </div>
+                  <div className="flex flex-wrap gap-2 mt-3">
+                    <Badge variant="secondary" className="text-xs">
+                      {session.category}
+                    </Badge>
+                    <Badge variant="outline" className="text-xs">
+                      {session.difficulty}
+                    </Badge>
+                    <Badge variant="outline" className="text-xs">
+                      {session.duration}
+                    </Badge>
+                  </div>
+                </CardHeader>
+                <CardContent className="p-4 lg:p-6 pt-0">
+                  <div className="space-y-3">
+                    <div className="text-xs lg:text-sm text-gray-600">
+                      <p>Instructor: {session.instructor}</p>
+                      <p>
+                        Completed: {session.completions} times • ⭐ {session.rating}
+                      </p>
+                    </div>
+
+                    <div className="space-y-2">
+                      <p className="text-xs lg:text-sm font-medium">Benefits:</p>
+                      <div className="flex flex-wrap gap-1">
+                        {session.benefits.map((benefit, index) => (
+                          <Badge key={index} variant="outline" className="text-xs">
+                            {benefit}
+                          </Badge>
+                        ))}
+                      </div>
+                    </div>
+
+                    {/* Add edit/delete options to session cards by updating the "Start" button section */}
+                    {/* <div className="flex gap-2 pt-2">
+                      <Button
+                        size="sm"
+                        className="flex-1 bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600"
+                        onClick={() => startSession(session.id)}
+                      >
+                        <Play className="w-3 h-3 lg:w-4 lg:h-4 mr-1" />
+                        Start
+                      </Button>
+                      <Button variant="outline" size="sm" onClick={() => openEditSessionModal(session)}>
+                        <Edit className="w-3 h-3 lg:w-4 lg:h-4" />
+                      </Button>
+                      <Button variant="outline" size="sm" onClick={() => openDeleteSessionModal(session)}>
+                        <Trash2 className="w-3 h-3 lg:w-4 lg:h-4" />
+                      </Button>
+                    </div> */}
+                  </div>
+                </CardContent>
+              </Card>
+            ))}
+           
           </div>
         </TabsContent>
 
@@ -603,7 +678,7 @@ export function MeditationContent() {
               </CardHeader>
               <CardContent className="space-y-4">
                 {aiRecommendations.map((rec, index) => (
-                  <div key={index} className="p-3 lg:p-4 border rounded-lg hover:bg-gray-50 transition-colors">
+                  <div key={index} className="p-3 lg:p-4 border rounded-lg ">
                     <div className="flex items-start justify-between mb-2">
                       <h4 className="font-medium text-sm lg:text-base">{rec.title}</h4>
                       <Badge variant="secondary" className="text-xs">
@@ -888,21 +963,21 @@ export function MeditationContent() {
       </Tabs>
 
       {/* Add a floating action button for adding new sessions */}
-      <div className="fixed bottom-6 right-6 flex flex-col gap-2">
-        <Button
+      {/* <div className="fixed bottom-6 right-6 flex flex-col gap-2"> */}
+        {/* <Button
           onClick={() => setShowAddSessionModal(true)}
           className="w-14 h-14 rounded-full bg-gradient-to-r from-purple-500 to-pink-500 shadow-lg"
         >
           <Plus className="w-6 h-6" />
-        </Button>
-        <Button
+        </Button> */}
+        {/* <Button
           onClick={() => setShowAddWorkoutModal(true)}
           variant="outline"
           className="w-14 h-14 rounded-full shadow-lg"
         >
           💪
-        </Button>
-      </div>
+        </Button> */}
+      {/* </div> */}
 
       {/* Add these modals at the end of the component, before the closing div */}
       <FormModal
