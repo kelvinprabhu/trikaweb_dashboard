@@ -13,6 +13,7 @@ import { Checkbox } from "@/components/ui/checkbox"
 
 interface ScheduleFormProps {
   event?: any
+  userEmail: string
   onSubmit: (data: any) => void
   onCancel: () => void
 }
@@ -40,12 +41,13 @@ const repeatOptions = [
   { value: "custom", label: "Custom" },
 ]
 
-export function ScheduleForm({ event, onSubmit, onCancel }: ScheduleFormProps) {
+export function ScheduleForm({ event, userEmail, onSubmit, onCancel }: ScheduleFormProps) {
   const [formData, setFormData] = useState({
+    userEmail: userEmail,
     title: event?.title || "",
     description: event?.description || "",
     type: event?.type || "",
-    date: event?.date || "",
+    date: event?.date ? new Date(event.date).toISOString().split('T')[0] : "",
     time: event?.time || "",
     duration: event?.duration || "",
     location: event?.location || "",
@@ -59,6 +61,7 @@ export function ScheduleForm({ event, onSubmit, onCancel }: ScheduleFormProps) {
     attendees: event?.attendees || "",
     equipment: event?.equipment || "",
     calories: event?.calories || "",
+    category: event?.category || "",
   })
 
   const [isLoading, setIsLoading] = useState(false)

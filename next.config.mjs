@@ -9,6 +9,14 @@ const nextConfig = {
   images: {
     unoptimized: true,
   },
-}
+  // webpack: (config) => {
+  //   config.resolve.alias = {
+  //     ...config.resolve.alias,
+  //     "@mediapipe/pose": "node_modules/@mediapipe/pose",
+  //     "@mediapipe/camera_utils": "node_modules/@mediapipe/camera_utils",
+  //   };
+  //   return config;
+  // },
+};
 
-export default nextConfig
+export default nextConfig;

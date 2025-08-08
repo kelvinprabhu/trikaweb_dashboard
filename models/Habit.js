@@ -6,7 +6,7 @@ const habitSchema = new mongoose.Schema(
     userEmail: { type: String, required: true }, // To associate habit with a user
     name: { type: String, required: true },
     icon: { type: String, default: "🔥" },
-    category: { type: String },
+    category: { type: String, required: true },
     streak: { type: Number, default: 0 },
     bestStreak: { type: Number, default: 0 },
     target: { type: Number, default: 7 },
@@ -19,6 +19,17 @@ const habitSchema = new mongoose.Schema(
     },
     monthlyCompletion: { type: Number, default: 0 },
     description: { type: String },
+    // Add completion history
+    completionHistory: [
+      {
+        date: { type: Date, required: true },
+        completed: { type: Boolean, default: true },
+        notes: { type: String },
+        timestamp: { type: Date, default: Date.now },
+      },
+    ],
+    lastCompletedDate: { type: Date },
+    isCompletedToday: { type: Boolean, default: false },
   },
   { timestamps: true }
 );

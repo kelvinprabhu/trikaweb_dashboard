@@ -1,40 +1,38 @@
 "use client"
 
-import { useState, useEffect, useRef } from "react"
+import { useState, useEffect, useRef } from "react";
 import {
-  X,
-  Camera,
-  Play,
-  Pause,
-  Square,
-  Eye,
-  Activity,
-  Timer,
-  Target,
-  Minimize2,
-  Maximize2,
-  History,
-  RotateCcw,
-} from "lucide-react"
-import { Button } from "@/components/ui/button"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { Badge } from "@/components/ui/badge"
-import { Progress } from "@/components/ui/progress"
-import { ScrollArea } from "@/components/ui/scroll-area"
+  X, Camera as CameraIcon, Play, Pause, Square, Eye, Activity, 
+  Timer, Target, Minimize2, Maximize2, History, RotateCcw
+} from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { Progress } from "@/components/ui/progress";
+import { ScrollArea } from "@/components/ui/scroll-area";
+import { usePoseDetection } from "./usePoseDetection";
 
 interface TrikaVisionModalProps {
-  isOpen: boolean
-  onClose: () => void
-  onSessionComplete: (sessionData: any) => void
-  workoutType?: string
+  isOpen: boolean;
+  onClose: () => void;
+  onSessionComplete: (sessionData: any) => void;
+  workoutType?: string;
 }
 
 interface WorkoutLogEntry {
-  id: string
-  activity: string
-  duration: number
-  timestamp: Date
-  type: "exercise" | "rest"
+  id: string;
+  activity: string;
+  duration: number;
+  timestamp: Date;
+  type: "exercise" | "rest";
+}
+
+interface Landmark {
+  x: number;
+  y: number;
+  z: number;
+  visibility: number;
+  active: boolean;
 }
 
 export function TrikaVisionModal({
@@ -43,155 +41,142 @@ export function TrikaVisionModal({
   onSessionComplete,
   workoutType = "Push-Up",
 }: TrikaVisionModalProps) {
-  const [isRecording, setIsRecording] = useState(false)
-  const [isMinimized, setIsMinimized] = useState(false)
-  const [sessionTime, setSessionTime] = useState(0)
-  const [repCount, setRepCount] = useState(0)
-  const [currentFeedback, setCurrentFeedback] = useState("Click start to begin workout")
-  const [corrections, setCorrections] = useState<string[]>([])
-  const [accuracy, setAccuracy] = useState(85)
-  const [pace, setPace] = useState("Good")
-  const [countdown, setCountdown] = useState(0)
-  const [cameraStream, setCameraStream] = useState<MediaStream | null>(null)
-  const [cameraError, setCameraError] = useState<string>("")
-  const [workoutLog, setWorkoutLog] = useState<WorkoutLogEntry[]>([
-    {
-      id: "1",
-      activity: "Push-ups",
-      duration: 15,
-      timestamp: new Date(Date.now() - 3600000),
-      type: "exercise",
-    },
-    {
-      id: "2",
-      activity: "Rest",
-      duration: 5,
-      timestamp: new Date(Date.now() - 3300000),
-      type: "rest",
-    },
-    {
-      id: "3",
-      activity: "Sit-ups",
-      duration: 10,
-      timestamp: new Date(Date.now() - 2700000),
-      type: "exercise",
-    },
-    {
-      id: "4",
-      activity: "Rest",
-      duration: 3,
-      timestamp: new Date(Date.now() - 2100000),
-      type: "rest",
-    },
-    {
-      id: "5",
-      activity: "Squats",
-      duration: 12,
-      timestamp: new Date(Date.now() - 1800000),
-      type: "exercise",
-    },
-  ])
+  // State management
+  const [isRecording, setIsRecording] = useState(false);
+  const [isMinimized, setIsMinimized] = useState(false);
+  const [sessionTime, setSessionTime] = useState(0);
+  const [repCount, setRepCount] = useState(0);
+  const [currentFeedback, setCurrentFeedback] = useState("Click start to begin workout");
+  const [corrections, setCorrections] = useState<string[]>([]);
+  const [accuracy, setAccuracy] = useState(85);
+  const [pace, setPace] = useState("Good");
+  const [countdown, setCountdown] = useState(0);
+  const [cameraStream, setCameraStream] = useState<MediaStream | null>(null);
+  const [cameraError, setCameraError] = useState("");
+  const [detectedLandmarks, setDetectedLandmarks] = useState<Landmark[]>([]);
+  const [workoutConfig, setWorkoutConfig] = useState<any>(null);
+  const [isConnected, setIsConnected] = useState(false);
+  const [workoutLog, setWorkoutLog] = useState<WorkoutLogEntry[]>([]);
 
-  const videoRef = useRef<HTMLVideoElement>(null)
+  // Refs
+  const videoRef = useRef<HTMLVideoElement>(null);
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+  const socketRef = useRef<WebSocket | null>(null);
 
-  // Simulated pose detection points
-  const [posePoints, setPosePoints] = useState([
-    { x: 45, y: 30, active: true },
-    { x: 55, y: 30, active: true },
-    { x: 50, y: 40, active: false },
-    { x: 40, y: 60, active: true },
-    { x: 60, y: 60, active: true },
-    { x: 45, y: 80, active: true },
-    { x: 55, y: 80, active: true },
-  ])
+  // Pose detection hook
+  const poseRef = usePoseDetection(videoRef, (results: any) => {
+    if (results.poseLandmarks) {
+      const landmarks = extractRelevantLandmarks(results.poseLandmarks);
+      setDetectedLandmarks(landmarks);
+    }
+  });
+
+  // WebSocket connection
+  useEffect(() => {
+    if (!isOpen) return;
+
+    const wsUrl = process.env.NEXT_PUBLIC_WEB_SOCKET_URL || "ws://127.0.0.1:8000/ws/posture/";
+    const ws = new WebSocket(wsUrl);
+
+    ws.onopen = () => {
+      setIsConnected(true);
+      console.log("WebSocket connected");
+    };
+
+    ws.onmessage = (event) => {
+      const data = JSON.parse(event.data);
+      if (data.type === 'workout') {
+        setWorkoutConfig(data.payload);
+      } else if (data.type === 'feedback') {
+        setCurrentFeedback(data.payload.message);
+        if (data.payload.isRep) {
+          setRepCount(prev => prev + 1);
+        }
+        if (data.payload.needsCorrection) {
+          setCorrections(prev => [...prev, data.payload.message]);
+        }
+        setAccuracy(data.payload.accuracy);
+      }
+    };
+
+    ws.onclose = () => {
+      setIsConnected(false);
+      console.log("WebSocket disconnected");
+    };
+
+    ws.onerror = (error) => {
+      console.error("WebSocket error:", error);
+    };
+
+    socketRef.current = ws;
+
+    return () => {
+      ws.close();
+    };
+  }, [isOpen]);
 
   // Initialize camera when modal opens
   useEffect(() => {
     if (isOpen && !isMinimized) {
-      initializeCamera()
+      initializeCamera();
     }
     return () => {
       if (cameraStream) {
-        cameraStream.getTracks().forEach((track) => track.stop())
+        cameraStream.getTracks().forEach((track) => track.stop());
       }
-    }
-  }, [isOpen, isMinimized])
+      if (poseRef.current) {
+        poseRef.current.close();
+      }
+    };
+  }, [isOpen, isMinimized]);
 
   // Timer effect
   useEffect(() => {
-    let interval: NodeJS.Timeout
+    let interval: NodeJS.Timeout;
     if (isRecording) {
       interval = setInterval(() => {
-        setSessionTime((prev) => prev + 1)
-      }, 1000)
+        setSessionTime((prev) => prev + 1);
+      }, 1000);
     }
-    return () => clearInterval(interval)
-  }, [isRecording])
+    return () => clearInterval(interval);
+  }, [isRecording]);
 
   // Countdown effect
   useEffect(() => {
-    let interval: NodeJS.Timeout
+    let interval: NodeJS.Timeout;
     if (countdown > 0) {
       interval = setInterval(() => {
         setCountdown((prev) => {
           if (prev === 1) {
-            // Start recording after countdown
-            setIsRecording(true)
-            setCurrentFeedback("Session started! Begin your workout")
-            return 0
+            setIsRecording(true);
+            setCurrentFeedback("Session started! Begin your workout");
+            return 0;
           }
-          return prev - 1
-        })
-      }, 1000)
+          return prev - 1;
+        });
+      }, 1000);
     }
-    return () => clearInterval(interval)
-  }, [countdown])
+    return () => clearInterval(interval);
+  }, [countdown]);
 
-  // Simulated real-time feedback
+  // Workout configuration effect
   useEffect(() => {
-    if (isRecording) {
-      const feedbackMessages = [
-        "Keep your back straight",
-        "Lower your chest more",
-        "Great form! Keep it up",
-        "Slow down the movement",
-        "Perfect alignment",
-        "Engage your core",
-        "Full range of motion",
-        "Maintain steady breathing",
-        "Focus on controlled movement",
-        "Excellent posture!",
-      ]
-
-      const interval = setInterval(() => {
-        const randomFeedback = feedbackMessages[Math.floor(Math.random() * feedbackMessages.length)]
-        setCurrentFeedback(randomFeedback)
-
-        // Simulate rep counting
-        if (Math.random() > 0.7) {
-          setRepCount((prev) => prev + 1)
-        }
-
-        // Add corrections occasionally
-        if (Math.random() > 0.8) {
-          setCorrections((prev) => [...prev, randomFeedback])
-        }
-
-        // Update accuracy
-        setAccuracy((prev) => Math.max(70, Math.min(95, prev + (Math.random() - 0.5) * 10)))
-
-        // Update pose points
-        setPosePoints((prev) =>
-          prev.map((point) => ({
-            ...point,
-            active: Math.random() > 0.3,
-          })),
-        )
-      }, 2000)
-
-      return () => clearInterval(interval)
+    if (workoutConfig) {
+      // workoutType is a prop and cannot be set directly
+      setCurrentFeedback(workoutConfig.instructions);
     }
-  }, [isRecording])
+  }, [workoutConfig]);
+
+  const extractRelevantLandmarks = (landmarks: any): Landmark[] => {
+    const RELEVANT_INDICES = [11, 12, 13, 14, 15, 16, 23, 24, 25, 26, 27, 28];
+    return RELEVANT_INDICES.map(index => ({
+      x: landmarks[index].x,
+      y: landmarks[index].y,
+      z: landmarks[index].z,
+      visibility: landmarks[index].visibility,
+      active: landmarks[index].visibility > 0.5
+    }));
+  };
 
   const initializeCamera = async () => {
     try {
@@ -201,58 +186,70 @@ export function TrikaVisionModal({
           height: { ideal: 720 },
           facingMode: "user",
         },
-      })
-      setCameraStream(stream)
-      setCameraError("")
+      });
+      setCameraStream(stream);
+      setCameraError("");
 
       if (videoRef.current) {
-        videoRef.current.srcObject = stream
+        videoRef.current.srcObject = stream;
+      }
+
+      if (socketRef.current?.readyState === WebSocket.OPEN) {
+        socketRef.current.send(JSON.stringify({
+          type: 'camera_ready',
+          payload: true
+        }));
       }
     } catch (error) {
-      console.error("Camera access failed:", error)
-      setCameraError("Camera access denied. Please enable camera permissions and refresh.")
+      console.error("Camera access failed:", error);
+      setCameraError("Camera access denied. Please enable camera permissions and refresh.");
     }
-  }
+  };
 
   const startSession = async () => {
     if (!cameraStream) {
-      await initializeCamera()
+      await initializeCamera();
     }
 
     if (cameraStream) {
-      setCountdown(3)
-      setCurrentFeedback("Get ready! Starting in...")
+      setCountdown(3);
+      setCurrentFeedback("Get ready! Starting in...");
 
-      // Add to workout log
       const newLogEntry: WorkoutLogEntry = {
         id: Date.now().toString(),
         activity: workoutType,
         duration: 0,
         timestamp: new Date(),
         type: "exercise",
+      };
+      setWorkoutLog((prev) => [newLogEntry, ...prev]);
+
+      if (socketRef.current?.readyState === WebSocket.OPEN) {
+        socketRef.current.send(JSON.stringify({
+          type: 'start_workout',
+          payload: { workoutType }
+        }));
       }
-      setWorkoutLog((prev) => [newLogEntry, ...prev])
     }
-  }
+  };
 
   const pauseSession = () => {
-    setIsRecording(false)
-    setCurrentFeedback("Session paused - Click resume to continue")
-  }
+    setIsRecording(false);
+    setCurrentFeedback("Session paused - Click resume to continue");
+  };
 
   const resumeSession = () => {
-    setIsRecording(true)
-    setCurrentFeedback("Session resumed! Continue your workout")
-  }
+    setIsRecording(true);
+    setCurrentFeedback("Session resumed! Continue your workout");
+  };
 
   const endSession = () => {
-    setIsRecording(false)
-    setCountdown(0)
+    setIsRecording(false);
+    setCountdown(0);
 
-    // Update the current workout log entry with final duration
     setWorkoutLog((prev) =>
       prev.map((entry, index) => (index === 0 ? { ...entry, duration: Math.floor(sessionTime / 60) } : entry)),
-    )
+    );
 
     const sessionData = {
       workoutType,
@@ -262,47 +259,54 @@ export function TrikaVisionModal({
       corrections: corrections.slice(-5),
       pace,
       completedAt: new Date().toISOString(),
+    };
+    onSessionComplete(sessionData);
+
+    if (socketRef.current?.readyState === WebSocket.OPEN) {
+      socketRef.current.send(JSON.stringify({
+        type: 'end_workout',
+        payload: sessionData
+      }));
     }
-    onSessionComplete(sessionData)
-  }
+  };
 
   const resetSession = () => {
-    setIsRecording(false)
-    setCountdown(0)
-    setSessionTime(0)
-    setRepCount(0)
-    setCorrections([])
-    setCurrentFeedback("Click start to begin workout")
-    setAccuracy(85)
-    setPace("Good")
-  }
+    setIsRecording(false);
+    setCountdown(0);
+    setSessionTime(0);
+    setRepCount(0);
+    setCorrections([]);
+    setCurrentFeedback("Click start to begin workout");
+    setAccuracy(85);
+    setPace("Good");
+  };
 
   const formatTime = (seconds: number) => {
-    const mins = Math.floor(seconds / 60)
-    const secs = seconds % 60
-    return `${mins.toString().padStart(2, "0")}:${secs.toString().padStart(2, "0")}`
-  }
+    const mins = Math.floor(seconds / 60);
+    const secs = seconds % 60;
+    return `${mins.toString().padStart(2, "0")}:${secs.toString().padStart(2, "0")}`;
+  };
 
   const formatLogTime = (minutes: number) => {
-    if (minutes < 1) return "< 1 min"
-    return `${minutes} min${minutes !== 1 ? "s" : ""}`
-  }
+    if (minutes < 1) return "< 1 min";
+    return `${minutes} min${minutes !== 1 ? "s" : ""}`;
+  };
 
   const toggleMinimize = () => {
-    setIsMinimized(!isMinimized)
-  }
+    setIsMinimized(!isMinimized);
+  };
 
   const handleClose = () => {
     if (cameraStream) {
-      cameraStream.getTracks().forEach((track) => track.stop())
+      cameraStream.getTracks().forEach((track) => track.stop());
     }
-    setIsRecording(false)
-    setCountdown(0)
-    resetSession()
-    onClose()
-  }
+    setIsRecording(false);
+    setCountdown(0);
+    resetSession();
+    onClose();
+  };
 
-  if (!isOpen) return null
+  if (!isOpen) return null;
 
   return (
     <div className="fixed inset-0 bg-black/95 backdrop-blur-sm z-50">
@@ -324,10 +328,10 @@ export function TrikaVisionModal({
           </div>
           <div className="flex items-center gap-2">
             <Button variant="ghost" size="icon" onClick={toggleMinimize} className="hover:bg-blue-100">
-              {isMinimized ? <Maximize2 className="w-5 h-5" /> : <Minimize2 className="w-5 h-5" />}
+              {isMinimized ? <Maximize2 className="w-5 h-5 text-blue-500" /> : <Minimize2 className="w-5 h-5 text-blue-500" />}
             </Button>
             <Button variant="ghost" size="icon" onClick={handleClose} className="hover:bg-blue-100">
-              <X className="w-6 h-6" />
+              <X className="w-6 h-6 text-blue-500" />
             </Button>
           </div>
         </div>
@@ -345,11 +349,19 @@ export function TrikaVisionModal({
                 className="absolute inset-0 w-full h-full object-cover"
               />
 
+              {/* Canvas for pose drawing */}
+              <canvas
+                ref={canvasRef}
+                className="absolute inset-0 w-full h-full"
+                width={1280}
+                height={720}
+              />
+
               {/* Fallback when no camera */}
               {!cameraStream && !cameraError && (
                 <div className="absolute inset-0 bg-gradient-to-br from-slate-800 to-slate-900 flex items-center justify-center">
                   <div className="text-center text-white">
-                    <Camera className="w-20 h-20 mx-auto mb-6 opacity-60" />
+                    <CameraIcon className="w-20 h-20 mx-auto mb-6 opacity-60" />
                     <p className="text-xl opacity-80 mb-2">Initializing Camera...</p>
                     <p className="text-sm opacity-50">Please allow camera access</p>
                   </div>
@@ -360,7 +372,7 @@ export function TrikaVisionModal({
               {cameraError && (
                 <div className="absolute inset-0 bg-gradient-to-br from-red-900 to-red-800 flex items-center justify-center">
                   <div className="text-center text-white max-w-md p-6">
-                    <Camera className="w-16 h-16 mx-auto mb-4 opacity-60" />
+                    <CameraIcon className="w-16 h-16 mx-auto mb-4 opacity-60" />
                     <p className="text-lg mb-4">{cameraError}</p>
                     <Button onClick={initializeCamera} className="bg-white text-red-800 hover:bg-gray-100">
                       Try Again
@@ -380,28 +392,35 @@ export function TrikaVisionModal({
               )}
 
               {/* Pose Detection Overlay */}
-              {isRecording && cameraStream && (
+              {isRecording && cameraStream && detectedLandmarks.length > 0 && (
                 <div className="absolute inset-0">
-                  {posePoints.map((point, index) => (
+                  {detectedLandmarks.map((point, index) => (
                     <div
                       key={index}
                       className={`absolute w-4 h-4 rounded-full transform -translate-x-1/2 -translate-y-1/2 ${
                         point.active
                           ? "bg-blue-400 shadow-lg shadow-blue-400/50"
                           : "bg-red-400 shadow-lg shadow-red-400/50"
-                      } animate-pulse`}
-                      style={{ left: `${point.x}%`, top: `${point.y}%` }}
+                      }`}
+                      style={{ 
+                        left: `${point.x * 100}%`, 
+                        top: `${point.y * 100}%` 
+                      }}
                     />
                   ))}
 
                   {/* Skeleton Lines */}
                   <svg className="absolute inset-0 w-full h-full">
-                    <line x1="45%" y1="30%" x2="55%" y2="30%" stroke="rgba(59, 130, 246, 0.8)" strokeWidth="3" />
-                    <line x1="50%" y1="30%" x2="50%" y2="40%" stroke="rgba(59, 130, 246, 0.8)" strokeWidth="3" />
-                    <line x1="50%" y1="40%" x2="40%" y2="60%" stroke="rgba(59, 130, 246, 0.8)" strokeWidth="3" />
-                    <line x1="50%" y1="40%" x2="60%" y2="60%" stroke="rgba(59, 130, 246, 0.8)" strokeWidth="3" />
-                    <line x1="40%" y1="60%" x2="45%" y2="80%" stroke="rgba(59, 130, 246, 0.8)" strokeWidth="3" />
-                    <line x1="60%" y1="60%" x2="55%" y2="80%" stroke="rgba(59, 130, 246, 0.8)" strokeWidth="3" />
+                    {/* Shoulder line */}
+                    <line 
+                      x1={`${detectedLandmarks[0]?.x * 100}%`} 
+                      y1={`${detectedLandmarks[0]?.y * 100}%`} 
+                      x2={`${detectedLandmarks[1]?.x * 100}%`} 
+                      y2={`${detectedLandmarks[1]?.y * 100}%`} 
+                      stroke="rgba(59, 130, 246, 0.8)" 
+                      strokeWidth="3" 
+                    />
+                    {/* Add more connections as needed */}
                   </svg>
                 </div>
               )}
@@ -413,6 +432,16 @@ export function TrikaVisionModal({
                   <span className="text-sm font-semibold">RECORDING</span>
                 </div>
               )}
+
+              {/* Connection Status */}
+              <div className={`absolute top-6 left-32 flex items-center gap-2 px-3 py-1 rounded-full ${
+                isConnected ? 'bg-green-500' : 'bg-yellow-500'
+              } text-white`}>
+                <div className="w-2 h-2 bg-white rounded-full animate-pulse" />
+                <span className="text-sm font-semibold">
+                  {isConnected ? 'CONNECTED' : 'CONNECTING...'}
+                </span>
+              </div>
 
               {/* Session Timer */}
               {(isRecording || sessionTime > 0) && (
@@ -584,7 +613,7 @@ export function TrikaVisionModal({
                     <CardContent>
                       <ScrollArea className="max-h-64">
                         <div className="space-y-3">
-                          {workoutLog.map((entry, index) => (
+                          {workoutLog.map((entry) => (
                             <div
                               key={entry.id}
                               className="flex items-center justify-between p-3 bg-white rounded-lg border border-blue-100 shadow-sm"
@@ -643,5 +672,5 @@ export function TrikaVisionModal({
         )}
       </div>
     </div>
-  )
+  );
 }

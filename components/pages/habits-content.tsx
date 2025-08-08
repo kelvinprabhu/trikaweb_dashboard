@@ -9,6 +9,8 @@ import {
   Target,
   Edit,
   Trash2,
+  History,
+  CheckCircle,
 } from "lucide-react";
 import {
   Card,
@@ -26,6 +28,9 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { FormModal } from "@/components/forms/form-modal";
 import { HabitForm } from "@/components/forms/habit-form";
 import { DeleteConfirmation } from "@/components/forms/delete-confirmation";
+import { HabitHistoryModal } from "@/components/forms/habit-history-modal";
+import { MarkCompleteModal } from "@/components/forms/mark-complete-modal";
+import { useToast } from "@/hooks/use-toast";
 import { stringify } from "querystring";
 
 // const habits = [
@@ -63,8 +68,11 @@ export function HabitsContent({ email }: { email: string }) {
   const [showAddModal, setShowAddModal] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [showHistoryModal, setShowHistoryModal] = useState(false);
+  const [showCompleteModal, setShowCompleteModal] = useState(false);
   const [selectedHabit, setSelectedHabit] = useState<any>(null);
   const [habits, setHabits] = useState<any[]>([]);
+  const { toast } = useToast();
 
   useEffect(() => {
     const fetchHabits = async () => {
@@ -87,40 +95,66 @@ export function HabitsContent({ email }: { email: string }) {
   // Add these handler functions
   const handleAddHabit = async (data: any) => {
     try {
+      console.log("Form data received:", data);
+      
+      // Map form data to the expected API structure
+      const habitData = {
+        userEmail: email,
+        name: data.name,
+        description: data.description || "",
+        icon: data.icon || "🔥",
+        category: data.category,
+        streak: 0, // New habits start with 0 streak
+        bestStreak: 0, // New habits start with 0 best streak
+        target: data.target || 1,
+        frequency: data.frequency || "daily",
+        completedThisWeek: 0, // New habits start with 0 completed
+        totalWeeks: 1, // New habits start with 1 week
+        weeklyData: [false, false, false, false, false, false, false], // New habits start with all false
+        monthlyCompletion: 0, // New habits start with 0% completion
+      };
+
+      console.log("Sending habit data:", habitData);
+
       const res = await fetch("/api/habits/add", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          userEmail: email,
-          name: data.name,
-          description: data.description,
-          icon: data.icon,
-          category: data.category,
-          streak: data.streak,
-          bestStreak: data.bestStreak,
-          target: data.target,
-          frequency: data.frequency,
-          completedThisWeek: data.completedThisWeek,
-          totalWeeks: data.totalWeeks,
-          weeklyData: data.weeklyData,
-          monthlyCompletion: data.monthlyCompletion,
-        }),
+        body: JSON.stringify(habitData),
       });
 
-      console.warn("body" + JSON.stringify(res));
-      const newHabit = await res.json();
+      console.log("Response status:", res.status);
+      console.log("Response ok:", res.ok);
 
       if (!res.ok) {
-        const errText = await res.text();
-        console.error("Add habit failed:", errText);
+        let errorMessage = "Failed to add habit";
+        const responseText = await res.text();
+        
+        if (responseText) {
+          try {
+            const errorData = JSON.parse(responseText);
+            errorMessage = errorData.error || errorData.details || errorMessage;
+            console.error("API Error details:", errorData);
+          } catch (parseError) {
+            errorMessage = responseText || errorMessage;
+            console.error("Failed to parse error response:", parseError);
+          }
+        } else {
+          // Handle empty response (likely MongoDB connection issue)
+          errorMessage = `Server error (${res.status}): ${res.statusText}. Please check MongoDB connection.`;
+        }
+        
+        console.error("Add habit failed:", errorMessage);
         return;
       }
 
-      // const newHabit = await res.json();
+      const newHabit = await res.json();
+      console.log("Created habit:", newHabit);
       setHabits([...habits, newHabit]);
       setShowAddModal(false);
     } catch (error) {
       console.error("Unexpected error:", error);
+      console.error("Error details:", error instanceof Error ? error.message : String(error));
+      console.error("Error stack:", error instanceof Error ? error.stack : "No stack trace");
     }
   };
 
@@ -157,6 +191,51 @@ export function HabitsContent({ email }: { email: string }) {
   const openDeleteModal = (habit: any) => {
     setSelectedHabit(habit);
     setShowDeleteModal(true);
+  };
+
+  const openHistoryModal = (habit: any) => {
+    setSelectedHabit(habit);
+    setShowHistoryModal(true);
+  };
+
+  const openCompleteModal = (habit: any) => {
+    setSelectedHabit(habit);
+    setShowCompleteModal(true);
+  };
+
+  const handleMarkComplete = async (habitId: string, notes?: string) => {
+    try {
+      const res = await fetch(`/api/habits/${habitId}/complete`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ notes }),
+      });
+
+      if (!res.ok) {
+        const errorData = await res.json();
+        toast({
+          title: "Error",
+          description: errorData.error || "Failed to mark habit as complete",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      const updatedHabit = await res.json();
+      setHabits(habits.map((h) => (h._id === habitId ? updatedHabit : h)));
+      
+      toast({
+        title: "Success!",
+        description: `"${updatedHabit.name}" marked as complete!`,
+      });
+    } catch (error) {
+      console.error("Failed to mark habit as complete:", error);
+      toast({
+        title: "Error",
+        description: "Failed to mark habit as complete",
+        variant: "destructive",
+      });
+    }
   };
 
   return (
@@ -337,14 +416,23 @@ export function HabitsContent({ email }: { email: string }) {
                   </div>
 
                   <div className="flex gap-2">
-                    <Button variant="outline" size="sm" className="flex-1">
+                    <Button 
+                      variant="outline" 
+                      size="sm" 
+                      className="flex-1"
+                      onClick={() => openHistoryModal(habit)}
+                    >
+                      <History className="w-4 h-4 mr-2" />
                       View History
                     </Button>
                     <Button
                       size="sm"
-                      className="flex-1 bg-gradient-to-r from-blue-600 to-slate-600"
+                      className="flex-1 bg-gradient-to-r from-green-600 to-green-700 hover:from-green-700 hover:to-green-800"
+                      onClick={() => openCompleteModal(habit)}
+                      disabled={habit.isCompletedToday}
                     >
-                      Mark Complete
+                      <CheckCircle className="w-4 h-4 mr-2" />
+                      {habit.isCompletedToday ? "Completed Today" : "Mark Complete"}
                     </Button>
                   </div>
                 </CardContent>
@@ -525,6 +613,20 @@ export function HabitsContent({ email }: { email: string }) {
           onCancel={() => setShowDeleteModal(false)}
         />
       </FormModal>
+
+      <HabitHistoryModal
+        isOpen={showHistoryModal}
+        onClose={() => setShowHistoryModal(false)}
+        habitId={selectedHabit?._id || ""}
+        habitName={selectedHabit?.name || ""}
+      />
+
+      <MarkCompleteModal
+        isOpen={showCompleteModal}
+        onClose={() => setShowCompleteModal(false)}
+        habit={selectedHabit}
+        onComplete={handleMarkComplete}
+      />
     </div>
   );
 }
