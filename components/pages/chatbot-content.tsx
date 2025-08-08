@@ -1,19 +1,27 @@
 "use client"
 
 import { useState } from "react"
-import { Send, Bot, User, Mic, MicOff, Settings } from "lucide-react"
+import { Send, Bot, User, Mic, MicOff, Settings, History, Plus } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Card, CardContent } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { ScrollArea } from "@/components/ui/scroll-area"
-
+import ServerStatusBadge from "@/components/server-status-badge";
 interface Message {
   id: number
   type: "user" | "bot"
   content: string
   timestamp: Date
   suggestions?: string[]
+}
+
+interface Conversation {
+  sessionId: string
+  title: string
+  totalMessages: number
+  lastActivity: Date
+  createdAt: Date
 }
 
 const initialMessages: Message[] = [
@@ -36,11 +44,14 @@ const quickActions = [
   { label: "Recovery tips", icon: "😴" },
 ]
 
-export function ChatbotContent() {
+export function ChatbotContent({ email }: { email: string }) {
   const [messages, setMessages] = useState<Message[]>(initialMessages)
   const [inputValue, setInputValue] = useState("")
   const [isLoading, setIsLoading] = useState(false)
   const [isListening, setIsListening] = useState(false)
+  const [sessionId, setSessionId] = useState<string>("")
+  const [conversations, setConversations] = useState<Conversation[]>([])
+  const [showConversationHistory, setShowConversationHistory] = useState(false)
 
   const handleSendMessage = async () => {
     if (!inputValue.trim()) return
@@ -53,21 +64,64 @@ export function ChatbotContent() {
     }
 
     setMessages((prev) => [...prev, userMessage])
+    const currentInput = inputValue
     setInputValue("")
     setIsLoading(true)
 
-    // Simulate AI response
-    setTimeout(() => {
-      const botResponse: Message = {
+    try {
+      const response = await fetch("/api/chatbot", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          userEmail: email,
+          query: currentInput,
+          sessionId: sessionId,
+        }),
+      })
+
+      if (response.ok) {
+        const data = await response.json()
+        
+        // Update session ID if it's a new conversation
+        if (data.sessionId && !sessionId) {
+          setSessionId(data.sessionId)
+        }
+
+        const botResponse: Message = {
+          id: messages.length + 2,
+          type: "bot",
+          content: data.response,
+          timestamp: new Date(),
+          suggestions: generateSuggestions(currentInput),
+        }
+        setMessages((prev) => [...prev, botResponse])
+      } else {
+        const errorData = await response.json()
+        console.error("Chatbot API error:", errorData)
+        
+        const errorResponse: Message = {
+          id: messages.length + 2,
+          type: "bot",
+          content: "I'm sorry, I'm having trouble connecting to my services right now. Please try again later.",
+          timestamp: new Date(),
+        }
+        setMessages((prev) => [...prev, errorResponse])
+      }
+    } catch (error) {
+      console.error("Error sending message:", error)
+      
+      const errorResponse: Message = {
         id: messages.length + 2,
         type: "bot",
-        content: generateBotResponse(inputValue),
+        content: "I'm sorry, there was an error processing your request. Please try again.",
         timestamp: new Date(),
-        suggestions: generateSuggestions(inputValue),
       }
-      setMessages((prev) => [...prev, botResponse])
+      setMessages((prev) => [...prev, errorResponse])
+    } finally {
       setIsLoading(false)
-    }, 1500)
+    }
   }
 
   const generateBotResponse = (input: string): string => {
@@ -123,6 +177,38 @@ export function ChatbotContent() {
     // Voice input functionality would be implemented here
   }
 
+  const fetchConversationHistory = async () => {
+    try {
+      const response = await fetch(`/api/chatbot?userEmail=${email}`)
+      if (response.ok) {
+        const data = await response.json()
+        setConversations(data.conversations || [])
+      }
+    } catch (error) {
+      console.error("Error fetching conversation history:", error)
+    }
+  }
+
+  const startNewConversation = () => {
+    setMessages(initialMessages)
+    setSessionId("")
+    setShowConversationHistory(false)
+  }
+
+  const loadConversation = async (sessionId: string) => {
+    try {
+      const response = await fetch(`/api/chatbot/${sessionId}?userEmail=${email}`)
+      if (response.ok) {
+        const data = await response.json()
+        setMessages(data.conversation.messages)
+        setSessionId(sessionId)
+        setShowConversationHistory(false)
+      }
+    } catch (error) {
+      console.error("Error loading conversation:", error)
+    }
+  }
+
   return (
     <div className="w-full h-full flex flex-col">
       {/* Header */}
@@ -136,13 +222,71 @@ export function ChatbotContent() {
             <p className="text-sm text-slate-400">Your personal trainer and nutrition coach</p>
           </div>
         </div>
-        <div className="flex items-center gap-2">
-          <Badge className="bg-green-500/20 text-green-300 border-green-500/30">Online</Badge>
-          <Button variant="ghost" size="icon" className="text-slate-400">
-            <Settings className="w-4 h-4" />
+        <div className="flex items-center gap-10">
+
+        <ServerStatusBadge />
+          <Button 
+            variant="ghost" 
+            size="icon" 
+            className="text-slate-400"
+            onClick={() => {
+              setShowConversationHistory(!showConversationHistory)
+              if (!showConversationHistory) {
+                fetchConversationHistory()
+              }
+            }}
+          >
+            <History className="w-4 h-4" />
           </Button>
+          <Button
+              variant="outline"
+              size="sm"
+              onClick={startNewConversation}
+              className="text-xs border-slate-700 hover:bg-slate-800"
+            >
+              <Plus className="w-3 h-3 mr-1" />
+              New Chat
+            </Button>
         </div>
       </div>
+
+      {/* Conversation History Panel */}
+      {showConversationHistory && (
+        <div className="p-4 border-b border-slate-800 bg-slate-900/50">
+          <div className="flex items-center justify-between mb-3">
+            <h3 className="text-sm font-medium text-slate-400">Conversation History</h3>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={startNewConversation}
+              className="text-xs border-slate-700 hover:bg-slate-800"
+            >
+              <Plus className="w-3 h-3 mr-1" />
+              New Chat
+            </Button>
+          </div>
+          <div className="space-y-2 max-h-40 overflow-y-auto">
+            {conversations.length === 0 ? (
+              <p className="text-xs text-slate-500">No previous conversations</p>
+            ) : (
+              conversations.map((conversation) => (
+                <div
+                  key={conversation.sessionId}
+                  className="flex items-center justify-between p-2 rounded hover:bg-slate-800 cursor-pointer"
+                  onClick={() => loadConversation(conversation.sessionId)}
+                >
+                  <div className="flex-1 min-w-0">
+                    <p className="text-xs text-slate-300 truncate">{conversation.title}</p>
+                    <p className="text-xs text-slate-500">
+                      {conversation.totalMessages} messages • {new Date(conversation.lastActivity).toLocaleDateString()}
+                    </p>
+                  </div>
+                </div>
+              ))
+            )}
+          </div>
+        </div>
+      )}
 
       {/* Quick Actions */}
       <div className="p-4 border-b border-slate-800">

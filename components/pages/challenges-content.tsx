@@ -12,12 +12,12 @@ export function ChallengesContent({email}:{email:string}) {
   const router = useRouter()
 const [challenges, setChallenges] = useState([]);
 
-// useEffect(() => {
-//   fetch('/api/global-challenges')
-//     .then(res => res.json())
-//     .then(data => setChallenges(data));
-//   console.warn(challenges)
-// }, []);
+useEffect(() => {
+  fetch('/api/global-challenges')
+    .then(res => res.json())
+    .then(data => setChallenges(data));
+  console.warn(challenges)
+}, []);
   const handleTrikaVisionStart = (workoutType: string) => {
     router.push(`/trika-vision?workout=${encodeURIComponent(workoutType)}`)
   }
@@ -64,6 +64,7 @@ const [challenges, setChallenges] = useState([]);
   //   },
   // ]
 
+
   const weeklyGoals = [
     {
       title: "Cardio Minutes",
@@ -98,11 +99,11 @@ const [challenges, setChallenges] = useState([]);
           View Leaderboard
         </Button>
       </div>
-      <Tabs defaultValue="custom" className="space-y-4 lg:space-y-6">
+      <Tabs defaultValue="global" className="space-y-4 lg:space-y-6">
         <TabsList className="grid w-full grid-cols-4 lg:grid-cols-2">
-          {/* <TabsTrigger value="global" className="text-xs lg:text-sm">
+          <TabsTrigger value="global" className="text-xs lg:text-sm">
             Global Challenges
-          </TabsTrigger> */}
+          </TabsTrigger>
           <TabsTrigger value="custom" className="text-xs lg:text-sm">
             Personal Challenges
           </TabsTrigger>
@@ -112,9 +113,9 @@ const [challenges, setChallenges] = useState([]);
 
         </TabsList>
 
-        {/* <TabsContent value="global" className="space-y-4 lg:space-y-6"> */}
+        <TabsContent value="global" className="space-y-4 lg:space-y-6">
                 {/* Active Challenges */}
-      {/* <div className="space-y-6">
+      <div className="space-y-6">
         <h2 className="text-xl font-semibold text-white-900 lg:text-base">Active Global Challenges</h2>
         <div className="grid gap-6">
           {global_challenges.map((challenge) => (
@@ -196,12 +197,12 @@ const [challenges, setChallenges] = useState([]);
             </Card>
           ))}
         </div>
-      </div> */}
-        {/* </TabsContent> */}
+      </div>
+        </TabsContent>
 
         <TabsContent value="custom" className="space-y-4 lg:space-y-6">
       {/* personal Challenges */}
-      {/* <div className="space-y-6">
+      <div className="space-y-6">
         <h2 className="text-xl font-semibold text-white-900 lg:text-base">Personal global_challenges</h2>
         <div className="grid gap-6">
           {global_challenges.map((challenge) => (
@@ -282,7 +283,7 @@ const [challenges, setChallenges] = useState([]);
             </Card>
           ))}
         </div>
-      </div> */}
+      </div>
         </TabsContent>
 
         <TabsContent value="goals" className="space-y-4 lg:space-y-6">

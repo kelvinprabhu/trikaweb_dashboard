@@ -165,7 +165,7 @@ const aiRecommendations = [
   },
 ]
 
-export function MeditationContent() {
+export function MeditationContent({ email }: { email: string } ) {
   // Add state for modals in the component
   const [showAddSessionModal, setShowAddSessionModal] = useState(false)
   const [showEditSessionModal, setShowEditSessionModal] = useState(false)
