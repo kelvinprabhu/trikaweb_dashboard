@@ -1,0 +1,64 @@
+{
+    "challenges": [
+        {
+            "_id": "1",
+            "title": "30-Day Push-Up Challenge",
+            "description": "Build upper body strength with progressive push-up training",
+            "difficulty": "Intermediate",
+            "durationDays": 30,
+            "durationMinutes": 30,
+            "workoutType": "Push-Up",
+            "badge": "💪",
+            "color": "from-orange-500 to-red-500",
+            "createdAt": "2024-01-01T00:00:00.000Z"
+        },
+        {
+            "_id": "2",
+            "title": "Squat Master Challenge",
+            "description": "Perfect your squat form and build leg strength",
+            "difficulty": "Beginner",
+            "durationDays": 21,
+            "durationMinutes": 15,
+            "workoutType": "Squat",
+            "badge": "🦵",
+            "color": "from-blue-500 to-purple-500",
+            "createdAt": "2024-01-01T00:00:00.000Z"
+        },
+        {
+            "_id": "3",
+            "title": "Plank Endurance Challenge",
+            "description": "Build core strength with progressive plank holds",
+            "difficulty": "Advanced",
+            "durationDays": 14,
+            "durationMinutes": 45,
+            "workoutType": "Plank",
+            "badge": "🔥",
+            "color": "from-green-500 to-teal-500",
+            "createdAt": "2024-01-01T00:00:00.000Z"
+        },
+        {
+            "_id": "4",
+            "title": "Burpee Blast Challenge",
+            "description": "High-intensity full-body workout with burpees",
+            "difficulty": "Advanced",
+            "durationDays": 7,
+            "durationMinutes": 45,
+            "workoutType": "Burpee",
+            "badge": "⚡",
+            "color": "from-red-500 to-pink-500",
+            "createdAt": "2024-01-01T00:00:00.000Z"
+        },
+        {
+            "_id": "5",
+            "title": "Mountain Climber Marathon",
+            "description": "Cardio and core workout with mountain climbers",
+            "difficulty": "Beginner",
+            "durationDays": 10,
+            "durationMinutes": 15,
+            "workoutType": "Mountain Climber",
+            "badge": "🏃",
+            "color": "from-indigo-500 to-purple-500",
+            "createdAt": "2024-01-01T00:00:00.000Z"
+        }
+    ]
+}

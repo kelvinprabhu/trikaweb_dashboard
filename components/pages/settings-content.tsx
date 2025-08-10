@@ -1,7 +1,7 @@
 "use client";
 
 import { Progress } from "@/components/ui/progress";
-
+import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import {
   User,
@@ -73,6 +73,15 @@ export function SettingsContent({ email }: { email: string }) {
   const [notifications, setNotifications] = useState(notificationSettings);
   const [privacy, setPrivacy] = useState(privacySettings);
   // const [profile, setProfile] = useState()
+  const router = useRouter();
+
+  const handleLogout = async () => {
+    await fetch("/api/logout", { method: "POST" });
+    localStorage.removeItem("trika_auth_token");
+    localStorage.removeItem("trika_onboarding_complete");
+
+    router.push("/"); // Redirect to login page
+  };
   useEffect(() => {
     const fetchProfile = async () => {
       const res = await fetch(`/api/user/profile?email=${email}`);
@@ -86,25 +95,25 @@ export function SettingsContent({ email }: { email: string }) {
     };
     fetchProfile();
   }, [email]);
-const handleSubmit = async () => {
-  try {
-    const response = await fetch("/api/user", {
-      method: "PATCH", // or "PUT"
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify(profile),
-    });
+  const handleSubmit = async () => {
+    try {
+      const response = await fetch("/api/user", {
+        method: "PATCH", // or "PUT"
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(profile),
+      });
 
-    if (response.ok) {
-      console.log("Profile updated successfully");
-    } else {
-      console.error("Failed to update profile");
+      if (response.ok) {
+        console.log("Profile updated successfully");
+      } else {
+        console.error("Failed to update profile");
+      }
+    } catch (error) {
+      console.error("An error occurred:", error);
     }
-  } catch (error) {
-    console.error("An error occurred:", error);
-  }
-};
+  };
 
   return (
     <div className="w-full h-full space-y-6">
@@ -295,12 +304,12 @@ const handleSubmit = async () => {
               </div>
 
               <Button
-  className="bg-gradient-to-r from-red-500 to-blue-500"
-  onClick={handleSubmit}
-  type="button"
->
-  Save Changes
-</Button>
+                className="bg-gradient-to-r from-red-500 to-blue-500"
+                onClick={handleSubmit}
+                type="button"
+              >
+                Save Changes
+              </Button>
 
             </CardContent>
           </Card>
@@ -777,7 +786,7 @@ const handleSubmit = async () => {
               </div>
 
               <div className="border-t pt-6">
-                <Button variant="destructive" className="w-full">
+                <Button variant="destructive" className="w-full" onClick={handleLogout}>
                   <LogOut className="w-4 h-4 mr-2" />
                   Sign Out
                 </Button>

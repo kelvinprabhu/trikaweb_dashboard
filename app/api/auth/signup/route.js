@@ -28,6 +28,6 @@ export async function POST(req) {
       user: { email: user.email, name: `${user.firstName} ${user.lastName}` },
     });
   } catch (err) {
-    return NextResponse.json({ error: "Server error" }, { status: 500 });
+    return NextResponse.json({ error: "Server error"  + err }, { status: 500 });
   }
 }

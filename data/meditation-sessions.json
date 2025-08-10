@@ -1,0 +1,84 @@
+{
+  "sessions": [
+    {
+      "_id": "1",
+      "title": "Morning Energizer",
+      "description": "Start your day with positive energy and focus",
+      "category": "Energy",
+      "duration": "8 min",
+      "difficulty": "Beginner",
+      "instructor": "AI Guide Sarah",
+      "image": "🌅",
+      "src": "/media/meditation/1.mp3",
+      "color": "from-orange-400 to-pink-400",
+      "benefits": [
+        "Reduces stress",
+        "Improves focus",
+        "Boosts energy"
+      ],
+      "completions": 24,
+      "rating": 4.8,
+      "createdAt": "2024-01-01T00:00:00.000Z"
+    },
+    {
+      "_id": "2",
+      "title": "Sleep Sanctuary",
+      "description": "Gentle meditation to prepare for restful sleep",
+      "category": "Sleep",
+      "duration": "15 min",
+      "difficulty": "Beginner",
+      "instructor": "AI Guide Luna",
+      "image": "🌙",
+      "src": "/media/meditation/2.mp3",
+      "color": "from-indigo-400 to-purple-400",
+      "benefits": [
+        "Better sleep quality",
+        "Reduces anxiety",
+        "Calms mind"
+      ],
+      "completions": 18,
+      "rating": 4.9,
+      "createdAt": "2024-01-01T00:00:00.000Z"
+    },
+    {
+      "_id": "3",
+      "title": "Stress Relief",
+      "description": "Release tension and find inner peace",
+      "category": "Stress Relief",
+      "duration": "12 min",
+      "difficulty": "Intermediate",
+      "instructor": "AI Guide Zen",
+      "image": "🌬️",
+      "src": "/media/meditation/3.mp3",
+      "color": "from-cyan-400 to-blue-400",
+      "benefits": [
+        "Lowers blood pressure",
+        "Reduces cortisol",
+        "Improves mood"
+      ],
+      "completions": 31,
+      "rating": 4.7,
+      "createdAt": "2024-01-01T00:00:00.000Z"
+    },
+    {
+      "_id": "4",
+      "title": "Focus Enhancement",
+      "description": "Sharpen your concentration and mental clarity",
+      "category": "Focus",
+      "duration": "8 min",
+      "difficulty": "Intermediate",
+      "instructor": "AI Guide Focus",
+      "image": "🎯",
+      "src": "/media/meditation/4.mp3",
+      "color": "from-green-400 to-teal-400",
+      "benefits": [
+        "Enhances concentration",
+        "Boosts productivity",
+        "Clears mental fog"
+      ],
+      "completions": 15,
+      "rating": 4.6,
+      "createdAt": "2024-01-01T00:00:00.000Z"
+    }
+  ]
+}

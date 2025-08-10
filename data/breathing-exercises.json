@@ -1,0 +1,64 @@
+{
+  "exercises": [
+    {
+      "_id": "1",
+      "name": "4-7-8 Breathing",
+      "description": "Calming technique for stress relief and better sleep",
+      "category": "Relaxation",
+      "inhale": 4,
+      "hold": 7,
+      "exhale": 8,
+      "pause": 0,
+      "cycles": 8,
+      "difficulty": "Beginner",
+      "benefits": ["Reduces anxiety", "Improves sleep", "Lowers stress"],
+      "instructions": "Inhale for 4 counts, hold for 7, exhale for 8. Repeat for 8 cycles.",
+      "color": "from-blue-400 to-indigo-500"
+    },
+    {
+      "_id": "2",
+      "name": "Box Breathing",
+      "description": "Military technique for focus and calm",
+      "category": "Focus",
+      "inhale": 4,
+      "hold": 4,
+      "exhale": 4,
+      "pause": 4,
+      "cycles": 10,
+      "difficulty": "Beginner",
+      "benefits": ["Improves focus", "Reduces stress", "Enhances performance"],
+      "instructions": "Inhale, hold, exhale, and pause for equal counts of 4.",
+      "color": "from-green-400 to-blue-500"
+    },
+    {
+      "_id": "3",
+      "name": "Energizing Breath",
+      "description": "Quick technique to boost energy and alertness",
+      "category": "Energy",
+      "inhale": 3,
+      "hold": 2,
+      "exhale": 3,
+      "pause": 1,
+      "cycles": 15,
+      "difficulty": "Intermediate",
+      "benefits": ["Increases energy", "Improves alertness", "Boosts mood"],
+      "instructions": "Quick, rhythmic breathing to energize your body and mind.",
+      "color": "from-orange-400 to-red-500"
+    },
+    {
+      "_id": "4",
+      "name": "Deep Relaxation",
+      "description": "Extended breathing for deep meditation states",
+      "category": "Meditation",
+      "inhale": 6,
+      "hold": 6,
+      "exhale": 8,
+      "pause": 2,
+      "cycles": 12,
+      "difficulty": "Advanced",
+      "benefits": ["Deep relaxation", "Meditation support", "Stress relief"],
+      "instructions": "Slow, deep breathing for profound relaxation and meditation.",
+      "color": "from-purple-400 to-pink-500"
+    }
+  ]
+}

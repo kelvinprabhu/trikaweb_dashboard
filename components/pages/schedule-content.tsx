@@ -61,7 +61,7 @@ export function ScheduleContent({ email }: { email: string }) {
     try {
       const today = new Date().toISOString().split('T')[0]
       const response = await fetch(`/api/schedule?userEmail=${email}&date=${today}`)
-      
+
       if (response.ok) {
         const data = await response.json()
         setSchedules(data.schedules || [])
@@ -88,7 +88,7 @@ export function ScheduleContent({ email }: { email: string }) {
 
   // Filter schedules (non-habits)
   const regularSchedules = schedules.filter(item => !item.isHabit)
-  
+
   // Filter habits only
   const habitSchedules = schedules.filter(item => item.isHabit)
 
@@ -352,21 +352,21 @@ export function ScheduleContent({ email }: { email: string }) {
 
   const getHabitStatus = (item: ScheduleItem) => {
     if (!item.isHabit) return item.status
-    
+
     if (item.isCompletedToday) return "completed"
     return "upcoming"
   }
 
   const getHabitStatusColor = (item: ScheduleItem) => {
     if (!item.isHabit) return getStatusColor(item.status)
-    
+
     if (item.isCompletedToday) return "bg-green-100 text-green-800"
     return "bg-purple-100 text-purple-800"
   }
 
   const getHabitStatusIcon = (item: ScheduleItem) => {
     if (!item.isHabit) return getStatusIcon(item.status)
-    
+
     if (item.isCompletedToday) return <CheckCircle className="w-4 h-4 text-green-600" />
     return <Clock className="w-4 h-4 text-purple-600" />
   }
@@ -386,7 +386,7 @@ export function ScheduleContent({ email }: { email: string }) {
       </div>
 
       <Tabs defaultValue="today" className="space-y-6">
-        <TabsList>
+        <TabsList className="grid w-full grid-cols-4 lg:grid-cols-3">
           <TabsTrigger value="today">Today</TabsTrigger>
           <TabsTrigger value="habit">Today (Habits)</TabsTrigger>
           <TabsTrigger value="week">This Week</TabsTrigger>
@@ -410,8 +410,8 @@ export function ScheduleContent({ email }: { email: string }) {
               ) : regularSchedules.length === 0 ? (
                 <div className="text-center py-12">
                   <p className="text-gray-500">No activities scheduled for today</p>
-                  <Button 
-                    variant="outline" 
+                  <Button
+                    variant="outline"
                     className="mt-4"
                     onClick={() => setShowAddModal(true)}
                   >
@@ -434,73 +434,73 @@ export function ScheduleContent({ email }: { email: string }) {
                       </div>
 
                       <div className="flex-1">
-                                               <div className="flex items-center gap-2 mb-1">
-                         <h3 className="font-medium text-white">{item.title}</h3>
-                         {item.isHabit && (
-                           <Badge variant="outline" className="text-xs bg-purple-50 text-purple-700 border-purple-200">
-                             🏷️ Tagged Habit
-                           </Badge>
-                         )}
-                         <Badge variant="secondary" className="text-xs">
-                           {getCategoryFromType(item.type)}
-                         </Badge>
-                         <Badge className={`text-xs ${getHabitStatusColor(item)}`}>{getHabitStatus(item)}</Badge>
-                       </div>
+                        <div className="flex items-center gap-2 mb-1">
+                          <h3 className="font-medium text-white">{item.title}</h3>
+                          {item.isHabit && (
+                            <Badge variant="outline" className="text-xs bg-purple-50 text-purple-700 border-purple-200">
+                              🏷️ Tagged Habit
+                            </Badge>
+                          )}
+                          <Badge variant="secondary" className="text-xs">
+                            {getCategoryFromType(item.type)}
+                          </Badge>
+                          <Badge className={`text-xs ${getHabitStatusColor(item)}`}>{getHabitStatus(item)}</Badge>
+                        </div>
                         <p className="text-sm text-gray-600">{item.description}</p>
-                                                 <div className="flex items-center gap-4 mt-2 text-xs text-gray-500">
-                           <span>Duration: {formatDuration(item.duration)}</span>
-                           {item.calories && <span>Calories: {item.calories}</span>}
-                           {item.location && <span>Location: {item.location}</span>}
-                           {item.isHabit && item.streak && (
-                             <span className="text-purple-600 font-medium">Streak: {item.streak} days</span>
-                           )}
-                         </div>
+                        <div className="flex items-center gap-4 mt-2 text-xs text-gray-500">
+                          <span>Duration: {formatDuration(item.duration)}</span>
+                          {item.calories && <span>Calories: {item.calories}</span>}
+                          {item.location && <span>Location: {item.location}</span>}
+                          {item.isHabit && item.streak && (
+                            <span className="text-purple-600 font-medium">Streak: {item.streak} days</span>
+                          )}
+                        </div>
                       </div>
 
-                                             <div className="flex items-center gap-2">
-                         {!item.isHabit && (
-                           <>
-                             <Button variant="ghost" size="icon" onClick={() => openEditModal(item)}>
-                               <Edit className="w-4 h-4" />
-                             </Button>
-                             <Button variant="ghost" size="icon" onClick={() => openDeleteModal(item)}>
-                               <Trash2 className="w-4 h-4" />
-                             </Button>
-                           </>
-                         )}
-                         {!item.isHabit && item.status === "upcoming" && (
-                           <Button 
-                             size="sm" 
-                             className="bg-gradient-to-r from-red-500 to-blue-500"
-                             onClick={() => handleStatusUpdate(item._id, "active")}
-                           >
-                             Start
-                           </Button>
-                         )}
-                         {!item.isHabit && item.status === "active" && (
-                           <Button 
-                             size="sm" 
-                             className="bg-green-500 hover:bg-green-600"
-                             onClick={() => handleStatusUpdate(item._id, "completed")}
-                           >
-                             Complete
-                           </Button>
-                         )}
-                         {item.isHabit && !item.isCompletedToday && (
-                           <Button 
-                             size="sm" 
-                             className="bg-purple-500 hover:bg-purple-600"
-                             onClick={() => handleHabitComplete(item.habitId || "")}
-                           >
-                             Complete Habit
-                           </Button>
-                         )}
-                         {item.isHabit && item.isCompletedToday && (
-                           <Badge className="bg-green-100 text-green-700 text-xs">
-                             ✓ Completed Today
-                           </Badge>
-                         )}
-                       </div>
+                      <div className="flex items-center gap-2">
+                        {!item.isHabit && (
+                          <>
+                            <Button variant="ghost" size="icon" onClick={() => openEditModal(item)}>
+                              <Edit className="w-4 h-4" />
+                            </Button>
+                            <Button variant="ghost" size="icon" onClick={() => openDeleteModal(item)}>
+                              <Trash2 className="w-4 h-4" />
+                            </Button>
+                          </>
+                        )}
+                        {!item.isHabit && item.status === "upcoming" && (
+                          <Button
+                            size="sm"
+                            className="bg-gradient-to-r from-red-500 to-blue-500"
+                            onClick={() => handleStatusUpdate(item._id, "active")}
+                          >
+                            Start
+                          </Button>
+                        )}
+                        {!item.isHabit && item.status === "active" && (
+                          <Button
+                            size="sm"
+                            className="bg-green-500 hover:bg-green-600"
+                            onClick={() => handleStatusUpdate(item._id, "completed")}
+                          >
+                            Complete
+                          </Button>
+                        )}
+                        {item.isHabit && !item.isCompletedToday && (
+                          <Button
+                            size="sm"
+                            className="bg-purple-500 hover:bg-purple-600"
+                            onClick={() => handleHabitComplete(item.habitId || "")}
+                          >
+                            Complete Habit
+                          </Button>
+                        )}
+                        {item.isHabit && item.isCompletedToday && (
+                          <Badge className="bg-green-100 text-green-700 text-xs">
+                            ✓ Completed Today
+                          </Badge>
+                        )}
+                      </div>
                     </div>
                   ))}
                 </div>
@@ -522,21 +522,21 @@ export function ScheduleContent({ email }: { email: string }) {
                 <div className="flex items-center justify-center py-12">
                   <Loader2 className="w-8 h-8 animate-spin text-blue-500" />
                 </div>
-                             ) : habitSchedules.length === 0 ? (
-                 <div className="text-center py-12">
-                   <p className="text-gray-500">No habits created yet</p>
-                   <Button 
-                     variant="outline" 
-                     className="mt-4"
-                     onClick={() => window.location.href = '/habits'}
-                   >
-                     <Plus className="w-4 h-4 mr-2" />
-                     Go to Habits Page
-                   </Button>
-                 </div>
-               ) : (
-                 <div className="space-y-3">
-                   {habitSchedules.map((item) => (
+              ) : habitSchedules.length === 0 ? (
+                <div className="text-center py-12">
+                  <p className="text-gray-500">No habits created yet</p>
+                  <Button
+                    variant="outline"
+                    className="mt-4"
+                    onClick={() => window.location.href = '/habits'}
+                  >
+                    <Plus className="w-4 h-4 mr-2" />
+                    Go to Habits Page
+                  </Button>
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  {habitSchedules.map((item) => (
                     <div
                       key={item._id}
                       className="flex items-center gap-4 p-4 rounded-lg border hover:shadow-md transition-shadow"
@@ -549,73 +549,73 @@ export function ScheduleContent({ email }: { email: string }) {
                       </div>
 
                       <div className="flex-1">
-                                               <div className="flex items-center gap-2 mb-1">
-                         <h3 className="font-medium text-white">{item.title}</h3>
-                         {item.isHabit && (
-                           <Badge variant="outline" className="text-xs bg-purple-50 text-purple-700 border-purple-200">
-                             🏷️ Tagged Habit
-                           </Badge>
-                         )}
-                         <Badge variant="secondary" className="text-xs">
-                           {getCategoryFromType(item.type)}
-                         </Badge>
-                         <Badge className={`text-xs ${getHabitStatusColor(item)}`}>{getHabitStatus(item)}</Badge>
-                       </div>
+                        <div className="flex items-center gap-2 mb-1">
+                          <h3 className="font-medium text-white">{item.title}</h3>
+                          {item.isHabit && (
+                            <Badge variant="outline" className="text-xs bg-purple-50 text-purple-700 border-purple-200">
+                              🏷️ Tagged Habit
+                            </Badge>
+                          )}
+                          <Badge variant="secondary" className="text-xs">
+                            {getCategoryFromType(item.type)}
+                          </Badge>
+                          <Badge className={`text-xs ${getHabitStatusColor(item)}`}>{getHabitStatus(item)}</Badge>
+                        </div>
                         <p className="text-sm text-gray-600">{item.description}</p>
-                                                 <div className="flex items-center gap-4 mt-2 text-xs text-gray-500">
-                           <span>Duration: {formatDuration(item.duration)}</span>
-                           {item.calories && <span>Calories: {item.calories}</span>}
-                           {item.location && <span>Location: {item.location}</span>}
-                           {item.isHabit && item.streak && (
-                             <span className="text-purple-600 font-medium">Streak: {item.streak} days</span>
-                           )}
-                         </div>
+                        <div className="flex items-center gap-4 mt-2 text-xs text-gray-500">
+                          <span>Duration: {formatDuration(item.duration)}</span>
+                          {item.calories && <span>Calories: {item.calories}</span>}
+                          {item.location && <span>Location: {item.location}</span>}
+                          {item.isHabit && item.streak && (
+                            <span className="text-purple-600 font-medium">Streak: {item.streak} days</span>
+                          )}
+                        </div>
                       </div>
 
-                                             <div className="flex items-center gap-2">
-                         {!item.isHabit && (
-                           <>
-                             <Button variant="ghost" size="icon" onClick={() => openEditModal(item)}>
-                               <Edit className="w-4 h-4" />
-                             </Button>
-                             <Button variant="ghost" size="icon" onClick={() => openDeleteModal(item)}>
-                               <Trash2 className="w-4 h-4" />
-                             </Button>
-                           </>
-                         )}
-                         {!item.isHabit && item.status === "upcoming" && (
-                           <Button 
-                             size="sm" 
-                             className="bg-gradient-to-r from-red-500 to-blue-500"
-                             onClick={() => handleStatusUpdate(item._id, "active")}
-                           >
-                             Start
-                           </Button>
-                         )}
-                         {!item.isHabit && item.status === "active" && (
-                           <Button 
-                             size="sm" 
-                             className="bg-green-500 hover:bg-green-600"
-                             onClick={() => handleStatusUpdate(item._id, "completed")}
-                           >
-                             Complete
-                           </Button>
-                         )}
-                         {item.isHabit && !item.isCompletedToday && (
-                           <Button 
-                             size="sm" 
-                             className="bg-purple-500 hover:bg-purple-600"
-                             onClick={() => handleHabitComplete(item.habitId || "")}
-                           >
-                             Complete Habit
-                           </Button>
-                         )}
-                         {item.isHabit && item.isCompletedToday && (
-                           <Badge className="bg-green-100 text-green-700 text-xs">
-                             ✓ Completed Today
-                           </Badge>
-                         )}
-                       </div>
+                      <div className="flex items-center gap-2">
+                        {!item.isHabit && (
+                          <>
+                            <Button variant="ghost" size="icon" onClick={() => openEditModal(item)}>
+                              <Edit className="w-4 h-4" />
+                            </Button>
+                            <Button variant="ghost" size="icon" onClick={() => openDeleteModal(item)}>
+                              <Trash2 className="w-4 h-4" />
+                            </Button>
+                          </>
+                        )}
+                        {!item.isHabit && item.status === "upcoming" && (
+                          <Button
+                            size="sm"
+                            className="bg-gradient-to-r from-red-500 to-blue-500"
+                            onClick={() => handleStatusUpdate(item._id, "active")}
+                          >
+                            Start
+                          </Button>
+                        )}
+                        {!item.isHabit && item.status === "active" && (
+                          <Button
+                            size="sm"
+                            className="bg-green-500 hover:bg-green-600"
+                            onClick={() => handleStatusUpdate(item._id, "completed")}
+                          >
+                            Complete
+                          </Button>
+                        )}
+                        {item.isHabit && !item.isCompletedToday && (
+                          <Button
+                            size="sm"
+                            className="bg-purple-500 hover:bg-purple-600"
+                            onClick={() => handleHabitComplete(item.habitId || "")}
+                          >
+                            Complete Habit
+                          </Button>
+                        )}
+                        {item.isHabit && item.isCompletedToday && (
+                          <Badge className="bg-green-100 text-green-700 text-xs">
+                            ✓ Completed Today
+                          </Badge>
+                        )}
+                      </div>
                     </div>
                   ))}
                 </div>
@@ -654,19 +654,19 @@ export function ScheduleContent({ email }: { email: string }) {
       </Tabs>
 
       <FormModal isOpen={showAddModal} onClose={() => setShowAddModal(false)} title="Add New Activity">
-        <ScheduleForm 
+        <ScheduleForm
           userEmail={email}
-          onSubmit={handleAddEvent} 
-          onCancel={() => setShowAddModal(false)} 
+          onSubmit={handleAddEvent}
+          onCancel={() => setShowAddModal(false)}
         />
       </FormModal>
 
       <FormModal isOpen={showEditModal} onClose={() => setShowEditModal(false)} title="Edit Activity">
-        <ScheduleForm 
+        <ScheduleForm
           userEmail={email}
-          event={selectedEvent} 
-          onSubmit={handleEditEvent} 
-          onCancel={() => setShowEditModal(false)} 
+          event={selectedEvent}
+          onSubmit={handleEditEvent}
+          onCancel={() => setShowEditModal(false)}
         />
       </FormModal>
 

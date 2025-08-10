@@ -18,11 +18,15 @@ import {
   Heart,
   Trophy,
   Play,
+  Headphones,
+  Mic
 } from "lucide-react"
 import { TrikaVisionModal } from "@/components/trika-vision/trika-vision-modal"
 import { SessionSummaryModal } from "@/components/trika-vision/session-summary-modal"
+import { useRouter } from "next/navigation"
 
 export function DashboardContent() {
+  const router = useRouter()
   const [showTrikaVision, setShowTrikaVision] = useState(false)
   const [showSessionSummary, setShowSessionSummary] = useState(false)
   const [sessionData, setSessionData] = useState(null)
@@ -33,14 +37,22 @@ export function DashboardContent() {
     const storedEmail = localStorage.getItem("trika_user_email")
     const storedUsername = localStorage.getItem("trika_user_name")
     if (storedEmail) setEmail(storedEmail)
-      if (storedUsername) setUsername(storedUsername)
-    
+    if (storedUsername) setUsername(storedUsername)
+
   }, [])
 
   if (!email) return <div>Loading...</div>
   const handleSessionComplete = (data: any) => {
     setSessionData(data)
     setShowSessionSummary(true)
+  }
+  const handleStandardStart = (
+    sessionType: string,
+
+  ) => {
+    router.push(
+      `/standard-mode?sessionType=${encodeURIComponent(sessionType)}`
+    )
   }
 
   return (
@@ -77,7 +89,7 @@ export function DashboardContent() {
                 <Eye className="w-6 h-6 text-white" />
               </div>
               <div>
-                <CardTitle className="text-xl">TrikaVision</CardTitle>
+                <CardTitle className="text-xl text-orange-500">TrikaVision</CardTitle>
                 <CardDescription>AI-Powered Form Analysis & Real-time Feedback</CardDescription>
               </div>
             </div>
@@ -118,6 +130,69 @@ export function DashboardContent() {
             <Play className="w-5 h-5 mr-2" />
             Start Workout with TrikaVision
           </Button>
+        </CardContent>
+      </Card>
+      {/* Standard Mode Feature Card */}
+      <Card className="border-2 border-blue-200 bg-gradient-to-r from-blue-50 to-cyan-50">
+        <CardHeader>
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <div className="w-12 h-12 bg-gradient-to-r from-blue-500 to-cyan-500 rounded-xl flex items-center justify-center">
+                <Play className="w-6 h-6 text-white" />
+              </div>
+              <div>
+                <CardTitle className="text-xl text-blue-800">Standard Workout Mode</CardTitle>
+                <CardDescription>
+                  Guided AI Sessions with Timer, Voice Coaching & Break Control
+                </CardDescription>
+              </div>
+            </div>
+            <div className="flex gap-2">
+
+              <Badge className="bg-purple-100 text-purple-800 border-purple-200">
+                <Mic className="w-3 h-3 mr-1" />
+                Voice Coach
+              </Badge>
+            </div>
+          </div>
+        </CardHeader>
+
+        <CardContent>
+          <div className="grid md:grid-cols-3 gap-4 mb-6">
+            <div className="text-center p-4 bg-white rounded-lg border border-blue-100">
+              <Clock className="w-8 h-8 text-blue-500 mx-auto mb-2" />
+              <h4 className="font-semibold text-gray-900">Interval Control</h4>
+              <p className="text-sm text-gray-600">
+                Set rest times & intervals for any workout type.
+              </p>
+            </div>
+            <div className="text-center p-4 bg-white rounded-lg border border-blue-100">
+              <Activity className="w-8 h-8 text-green-500 mx-auto mb-2" />
+              <h4 className="font-semibold text-gray-900">Live Metrics</h4>
+              <p className="text-sm text-gray-600">
+                Track calories, time, and progress in real-time.
+              </p>
+            </div>
+            <div className="text-center p-4 bg-white rounded-lg border border-blue-100">
+              <Headphones className="w-8 h-8 text-purple-500 mx-auto mb-2" />
+              <h4 className="font-semibold text-gray-900">Motivation & Tips</h4>
+              <p className="text-sm text-gray-600">
+                AI voice coach for posture, form, and motivation.
+              </p>
+            </div>
+          </div>
+
+          <div className="grid md:grid-cols-1 gap-3">
+
+
+            <Button
+              onClick={() => handleStandardStart("Regular")}
+              className="w-full bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600 text-white py-3 text-lg font-semibold"
+            >
+              <Play className="w-5 h-5 mr-2" />
+              Start Regular Session
+            </Button>
+          </div>
         </CardContent>
       </Card>
 
