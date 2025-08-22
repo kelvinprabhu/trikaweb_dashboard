@@ -200,7 +200,13 @@ export function ChatbotContent({ email }: { email: string }) {
       const response = await fetch(`/api/chatbot/${sessionId}?userEmail=${email}`)
       if (response.ok) {
         const data = await response.json()
-        setMessages(data.conversation.messages)
+        setMessages(
+          data.conversation.messages.map((msg: any, idx: number) => ({
+            ...msg,
+            timestamp: new Date(msg.timestamp),
+            id: idx + 1,
+          }))
+        )
         setSessionId(sessionId)
         setShowConversationHistory(false)
       }

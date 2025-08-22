@@ -758,7 +758,7 @@ export function MeditationContent({ email }: { email: string }) {
           <div className="flex items-center justify-between">
             <div>
               <p className="text-xs lg:text-sm text-gray-600">Total Sessions</p>
-              <p className="text-lg lg:text-2xl font-bold">{meditationStats.totalSessions}</p>
+              <p className="text-lg lg:text-2xl font-bold">{analytics?.totalSessions || 0}</p>
             </div>
             <Heart className="w-6 h-6 lg:w-8 lg:h-8 text-red-500" />
           </div>
@@ -768,7 +768,7 @@ export function MeditationContent({ email }: { email: string }) {
           <div className="flex items-center justify-between">
             <div>
               <p className="text-xs lg:text-sm text-gray-600">Minutes</p>
-              <p className="text-lg lg:text-2xl font-bold">{meditationStats.totalMinutes}</p>
+              <p className="text-lg lg:text-2xl font-bold">{Math.round(analytics?.totalMinutes || 0)}</p>
             </div>
             <Timer className="w-6 h-6 lg:w-8 lg:h-8 text-blue-500" />
           </div>
@@ -777,8 +777,8 @@ export function MeditationContent({ email }: { email: string }) {
         <Card className="p-3 lg:p-4">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-xs lg:text-sm text-gray-600">Current Streak</p>
-              <p className="text-lg lg:text-2xl font-bold">{meditationStats.currentStreak}</p>
+              <p className="text-xs lg:text-sm text-gray-600">Completion Rate</p>
+              <p className="text-lg lg:text-2xl font-bold">{Math.round(analytics?.averageCompletion || 0)}%</p>
             </div>
             <TrendingUp className="w-6 h-6 lg:w-8 lg:h-8 text-green-500" />
           </div>
@@ -788,7 +788,7 @@ export function MeditationContent({ email }: { email: string }) {
           <div className="flex items-center justify-between">
             <div>
               <p className="text-xs lg:text-sm text-gray-600">Avg Rating</p>
-              <p className="text-lg lg:text-2xl font-bold">{meditationStats.averageRating}</p>
+              <p className="text-lg lg:text-2xl font-bold">{Math.round(analytics?.averageCompletion || 0)}</p>
             </div>
             <Target className="w-6 h-6 lg:w-8 lg:h-8 text-purple-500" />
           </div>

@@ -1,10 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { MongoClient } from 'mongodb'
 import { unlink } from 'fs/promises'
 import { existsSync } from 'fs'
-
-const uri = process.env.MONGODB_URI || 'mongodb://localhost:27017'
-const client = new MongoClient(uri)
+import { connectDB } from '@/lib/mongodb'
+import MeditationLog from '@/models/MeditationLog'
 
 export async function DELETE(request: NextRequest) {
   try {
@@ -22,15 +20,13 @@ export async function DELETE(request: NextRequest) {
     console.log('Deleting custom meditation session:', sessionId)
 
     // Connect to MongoDB
-    await client.connect()
-    const db = client.db('TrikaDB')
-    const collection = db.collection('meditation_sessions')
+    await connectDB()
 
     // Find the session to get the audio file path
-    const session = await collection.findOne({
+    const session = await MeditationLog.findOne({
       sessionId,
       userEmail,
-      sessionType: 'custom'
+      category: 'custom'
     })
 
     if (!session) {
@@ -40,11 +36,11 @@ export async function DELETE(request: NextRequest) {
       )
     }
 
-    // Delete the audio file if it exists
-    if (session.audioPath && existsSync(session.audioPath)) {
+    // Delete the audio file if it exists (from customData)
+    if (session.customData?.audioPath && existsSync(session.customData.audioPath)) {
       try {
-        await unlink(session.audioPath)
-        console.log('Deleted audio file:', session.audioPath)
+        await unlink(session.customData.audioPath)
+        console.log('Deleted audio file:', session.customData.audioPath)
       } catch (fileError) {
         console.warn('Failed to delete audio file:', fileError)
         // Continue with database deletion even if file deletion fails
@@ -52,10 +48,10 @@ export async function DELETE(request: NextRequest) {
     }
 
     // Delete the session from database
-    const result = await collection.deleteOne({
+    const result = await MeditationLog.deleteOne({
       sessionId,
       userEmail,
-      sessionType: 'custom'
+      category: 'custom'
     })
 
     if (result.deletedCount === 0) {
@@ -77,7 +73,5 @@ export async function DELETE(request: NextRequest) {
       { error: 'Failed to delete custom meditation session' },
       { status: 500 }
     )
-  } finally {
-    await client.close()
   }
 }

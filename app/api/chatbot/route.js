@@ -45,6 +45,7 @@ export async function POST(request) {
 
     // Call Django API
     const djangoResponse = await fetch("http://127.0.0.1:8000/trikabot/chat", {
+      // const currentSessionId = sessionId || uuidv4();
       method: "POST",
       headers: {
         "Content-Type": "application/json",
@@ -52,6 +53,7 @@ export async function POST(request) {
       body: JSON.stringify({
         userEmail: userEmail,
         Query: query,
+        sessionId: sessionId || uuidv4(),
       }),
     });
 

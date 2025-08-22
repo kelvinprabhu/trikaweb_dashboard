@@ -1,12 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { MongoClient } from 'mongodb'
 import { writeFile, mkdir } from 'fs/promises'
 import { join } from 'path'
 import { existsSync } from 'fs'
-import type { CustomSessionRequest, MeditationSession } from '@/lib/models/meditation-session'
-import { connectDB } from "@/lib/mongodb";
-const uri = process.env.MONGODB_URI || 'mongodb://localhost:27017'
-const client = new MongoClient(uri)
+import type { CustomSessionRequest } from '@/models/meditation-session'
+import { connectDB } from "@/lib/mongodb"
+import MeditationLog from "@/models/MeditationLog"
 
 export async function POST(request: NextRequest) {
   try {
@@ -57,81 +55,60 @@ export async function POST(request: NextRequest) {
     const audioUrl = `/media/meditation/generated/${fileName}`
 
     // Connect to MongoDB and save session data
-    await client.connect()
-    const db = client.db('TrikaDB')
-    const collection = db.collection('meditation_sessions')
+    await connectDB()
 
-    const meditationSession: MeditationSession = {
+    // Create meditation log entry for the custom session
+    const meditationLogData = {
       userEmail: userEmail,
       sessionId: formData.sessionId,
-      sessionName: formData.sessionName,
-      sessionType: 'custom',
-      duration: formData.duration,
+      sessionTitle: formData.sessionName,
+      sessionDuration: `${formData.duration} min`,
+      actualDuration: formData.duration * 60, // Convert to seconds
+      completionPercentage: 0, // Will be updated when session is completed
+      isCompleted: false,
+      sessionType: 'meditation',
       category: 'custom',
+      mood: {
+        before: formData.currentMood || 7
+      },
+      notes: formData.personalIntention || '',
+      pauseCount: 0,
+      volume: formData.volume || 50,
+      backgroundSound: formData.ambientSounds,
+      sessionDate: new Date(),
       customData: {
-        currentMood: formData.currentMood,
         energyLevel: formData.energyLevel,
         stressLevel: formData.stressLevel,
         selectedGoals: formData.selectedGoals,
         binauralFrequency: formData.binauralFrequency,
-        ambientSounds: formData.ambientSounds,
         includeGuidance: formData.includeGuidance,
         includeBreathing: formData.includeBreathing,
-        personalIntention: formData.personalIntention,
         moodData: formData.moodData,
         frequencyData: formData.frequencyData,
-        estimatedEffectiveness: formData.estimatedEffectiveness
-      },
-      startTime: new Date(),
-      completed: false,
-      audioPath: filePath,
-      audioUrl: audioUrl,
-      mood: {
-        before: 7 // Default, should be collected from user
-      },
-      pauseCount: 0,
-      volume: formData.volume,
-      createdAt: new Date(),
-      updatedAt: new Date(),
-      generatedAt: new Date(formData.generatedAt)
+        estimatedEffectiveness: formData.estimatedEffectiveness,
+        audioPath: filePath,
+        audioUrl: audioUrl,
+        generatedAt: new Date(formData.generatedAt)
+      }
     }
 
-    const result = await collection.insertOne(meditationSession)
+    const meditationLog = new MeditationLog(meditationLogData)
+    const result = await meditationLog.save()
 
     return NextResponse.json({
       success: true,
-      sessionId: formData.sessionId,
-      audioUrl: audioUrl,
-      audioPath: filePath,
-      message: 'Custom meditation session created successfully',
-      dbId: result.insertedId
+      sessionId: result._id,
+      audioUrl,
+      session: result,
+      message: 'Custom meditation session generated and saved successfully'
     }, { status: 201 })
 
   } catch (error) {
-    console.error('Error creating custom meditation session:', error)
-
-    // Provide more specific error messages
-    if (error instanceof Error) {
-      if (error.message.includes('External API error')) {
-        return NextResponse.json(
-          { error: 'Failed to generate meditation audio. Please try again.' },
-          { status: 502 }
-        )
-      }
-      if (error.message.includes('ECONNREFUSED')) {
-        return NextResponse.json(
-          { error: 'Meditation generation service is unavailable. Please try again later.' },
-          { status: 503 }
-        )
-      }
-    }
-
+    console.error('Error generating custom meditation session:', error)
     return NextResponse.json(
-      { error: 'Failed to create custom meditation session' },
+      { error: 'Failed to generate custom meditation session' },
       { status: 500 }
     )
-  } finally {
-    await client.close()
   }
 }
 
@@ -139,8 +116,7 @@ export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url)
     const userEmail = searchParams.get('userEmail')
-    const sessionType = searchParams.get('sessionType')
-    const limit = parseInt(searchParams.get('limit') || '10')
+    const sessionId = searchParams.get('sessionId')
 
     if (!userEmail) {
       return NextResponse.json(
@@ -150,35 +126,28 @@ export async function GET(request: NextRequest) {
     }
 
     // Connect to MongoDB
-    await client.connect()
-    const db = client.db('trika_fitness')
-    const collection = db.collection('meditation_sessions')
+    await connectDB()
 
-    // Build query
-    const query: any = { userEmail }
-    if (sessionType) {
-      query.sessionType = sessionType
+    let query: any = { userEmail, category: 'custom' }
+    if (sessionId) {
+      query.sessionId = sessionId
     }
 
-    // Get meditation sessions
-    const sessions = await collection
-      .find(query)
-      .sort({ startTime: -1 })
-      .limit(limit)
-      .toArray()
+    const sessions = await MeditationLog.find(query)
+      .sort({ createdAt: -1 })
+      .lean()
 
     return NextResponse.json({
       success: true,
-      sessions
+      sessions,
+      count: sessions.length
     })
 
   } catch (error) {
-    console.error('Error fetching meditation sessions:', error)
+    console.error('Error fetching custom meditation sessions:', error)
     return NextResponse.json(
-      { error: 'Failed to fetch meditation sessions' },
+      { error: 'Failed to fetch custom meditation sessions' },
       { status: 500 }
     )
-  } finally {
-    await client.close()
   }
 }

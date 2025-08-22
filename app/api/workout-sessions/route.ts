@@ -1,8 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { MongoClient } from 'mongodb'
-
-const uri = process.env.MONGODB_URI || 'mongodb://localhost:27017'
-const client = new MongoClient(uri)
+import { connectDB } from '@/lib/mongodb'
+import WorkoutSession from '@/models/WorkoutSession'
 
 export async function POST(request: NextRequest) {
   try {
@@ -17,34 +15,34 @@ export async function POST(request: NextRequest) {
     }
 
     // Connect to MongoDB
-    await client.connect()
-    const db = client.db('TrikaDB')
-    const collection = db.collection('workout_sessions')
+    await connectDB()
 
-    // Add server timestamp
-    const workoutSession = {
+    // Create new workout session using Mongoose model
+    const workoutSession = new WorkoutSession({
       ...sessionData,
-      createdAt: new Date(),
-      updatedAt: new Date()
-    }
+      startTime: sessionData.startTime || new Date(),
+      endTime: sessionData.endTime || new Date()
+    });
 
-    // Insert the workout session
-    const result = await collection.insertOne(workoutSession)
+    // Save the workout session
+    const savedSession = await workoutSession.save()
 
     return NextResponse.json({
       success: true,
-      sessionId: result.insertedId,
-      message: 'Workout session logged successfully'
+      sessionId: savedSession._id,
+      message: 'Workout session logged successfully',
+      session: savedSession
     }, { status: 201 })
 
   } catch (error) {
     console.error('Error saving workout session:', error)
     return NextResponse.json(
-      { error: 'Failed to save workout session' },
+      { 
+        error: 'Failed to save workout session',
+        details: typeof error === 'object' && error !== null && 'message' in error ? (error as { message: string }).message : String(error)
+      },
       { status: 500 }
     )
-  } finally {
-    await client.close()
   }
 }
 
@@ -63,20 +61,17 @@ export async function GET(request: NextRequest) {
     }
 
     // Connect to MongoDB
-    await client.connect()
-    const db = client.db('trika_fitness')
-    const collection = db.collection('workout_sessions')
+    await connectDB()
 
-    // Get workout sessions for user
-    const sessions = await collection
-      .find({ userEmail })
-      .sort({ startTime: -1 })
-      .skip(skip)
-      .limit(limit)
-      .toArray()
-
-    // Get total count
-    const totalCount = await collection.countDocuments({ userEmail })
+    // Get workout sessions for user using Mongoose model
+    const [sessions, totalCount] = await Promise.all([
+      WorkoutSession.find({ userEmail })
+        .sort({ startTime: -1 })
+        .skip(skip)
+        .limit(limit)
+        .lean(),
+      WorkoutSession.countDocuments({ userEmail })
+    ]);
 
     return NextResponse.json({
       success: true,
@@ -88,10 +83,11 @@ export async function GET(request: NextRequest) {
   } catch (error) {
     console.error('Error fetching workout sessions:', error)
     return NextResponse.json(
-      { error: 'Failed to fetch workout sessions' },
+      { 
+        error: 'Failed to fetch workout sessions',
+        details: typeof error === 'object' && error !== null && 'message' in error ? (error as { message: string }).message : String(error)
+      },
       { status: 500 }
     )
-  } finally {
-    await client.close()
   }
 }

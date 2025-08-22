@@ -1,103 +1,104 @@
-import { NextRequest, NextResponse } from 'next/server'
-import { MongoClient } from 'mongodb'
-import type { MeditationSession, MeditationStats } from '@/lib/models/meditation-session'
-import { calculateStats } from '@/lib/models/meditation-session'
+// import { NextRequest, NextResponse } from "next/server";
+// import mongoose from "mongoose";
+// import type { MeditationSession } from "@/lib/models/meditation-session";
+// import { calculateStats } from "@/lib/models/meditation-session";
+// import { connectDB } from "@/lib/mongodb"; // <-- adjust path if needed
+// // Use your existing mongoose model or define schema here if not imported
+// const MeditationSessionModel =
+//   mongoose.models.MeditationSession ||
+//   mongoose.model<MeditationSession>(
+//     "MeditationSession",
+//     new mongoose.Schema(
+//       {
+//         userEmail: { type: String, required: true },
+//         sessionId: { type: String, required: true },
+//         startTime: Date,
+//         endTime: Date,
+//         duration: Number,
+//         // add any other fields you have in your schema
+//       },
+//       { timestamps: true }
+//     )
+//   );
 
-const uri = process.env.MONGODB_URI || 'mongodb://localhost:27017'
-const client = new MongoClient(uri)
+// export async function GET(request: NextRequest) {
+//   try {
+//     const { searchParams } = new URL(request.url);
+//     const userEmail = searchParams.get("userEmail");
 
-export async function GET(request: NextRequest) {
-  try {
-    const { searchParams } = new URL(request.url)
-    const userEmail = searchParams.get('userEmail')
+//     if (!userEmail) {
+//       return NextResponse.json(
+//         { error: "userEmail parameter is required" },
+//         { status: 400 }
+//       );
+//     }
 
-    if (!userEmail) {
-      return NextResponse.json(
-        { error: 'userEmail parameter is required' },
-        { status: 400 }
-      )
-    }
+//     await connectDB();
 
-    // Connect to MongoDB
-    await client.connect()
-    const db = client.db('trika_fitness')
-    const collection = db.collection('meditation_sessions')
+//     const sessions = (await MeditationSessionModel.find({ userEmail })
+//       .sort({ startTime: -1 })
+//       .lean()) as MeditationSession[];
 
-    // Get all meditation sessions for the user
-    const sessions = await collection
-      .find({ userEmail })
-      .sort({ startTime: -1 })
-      .toArray() as MeditationSession[]
+//     const stats = calculateStats(sessions);
 
-    // Calculate stats
-    const stats = calculateStats(sessions)
+//     return NextResponse.json({
+//       success: true,
+//       stats,
+//     });
+//   } catch (error) {
+//     console.error("Error fetching meditation stats:", error);
+//     return NextResponse.json(
+//       { error: "Failed to fetch meditation stats" },
+//       { status: 500 }
+//     );
+//   }
+// }
 
-    return NextResponse.json({
-      success: true,
-      stats
-    })
+// export async function POST(request: NextRequest) {
+//   try {
+//     const sessionData = await request.json();
 
-  } catch (error) {
-    console.error('Error fetching meditation stats:', error)
-    return NextResponse.json(
-      { error: 'Failed to fetch meditation stats' },
-      { status: 500 }
-    )
-  } finally {
-    await client.close()
-  }
-}
+//     if (!sessionData.userEmail || !sessionData.sessionId) {
+//       return NextResponse.json(
+//         { error: "Missing required fields: userEmail, sessionId" },
+//         { status: 400 }
+//       );
+//     }
 
-export async function POST(request: NextRequest) {
-  try {
-    const sessionData = await request.json()
-    
-    // Validate required fields
-    if (!sessionData.userEmail || !sessionData.sessionId) {
-      return NextResponse.json(
-        { error: 'Missing required fields: userEmail, sessionId' },
-        { status: 400 }
-      )
-    }
+//     await connectDB();
 
-    // Connect to MongoDB
-    await client.connect()
-    const db = client.db('trika_fitness')
-    const collection = db.collection('meditation_sessions')
+//     const updateData = {
+//       ...sessionData,
+//       updatedAt: new Date(),
+//     };
 
-    // Update existing session or create new one
-    const updateData = {
-      ...sessionData,
-      updatedAt: new Date()
-    }
+//     if (sessionData._id) {
+//       delete updateData._id;
+//     }
 
-    if (sessionData._id) {
-      delete updateData._id
-    }
+//     const result = await MeditationSessionModel.updateOne(
+//       {
+//         sessionId: sessionData.sessionId,
+//         userEmail: sessionData.userEmail,
+//       },
+//       {
+//         $set: updateData,
+//         $setOnInsert: { createdAt: new Date() },
+//       },
+//       { upsert: true }
+//     );
 
-    const result = await collection.updateOne(
-      { sessionId: sessionData.sessionId, userEmail: sessionData.userEmail },
-      { 
-        $set: updateData,
-        $setOnInsert: { createdAt: new Date() }
-      },
-      { upsert: true }
-    )
-
-    return NextResponse.json({
-      success: true,
-      message: 'Meditation session updated successfully',
-      upsertedId: result.upsertedId,
-      modifiedCount: result.modifiedCount
-    })
-
-  } catch (error) {
-    console.error('Error updating meditation session:', error)
-    return NextResponse.json(
-      { error: 'Failed to update meditation session' },
-      { status: 500 }
-    )
-  } finally {
-    await client.close()
-  }
-}
+//     return NextResponse.json({
+//       success: true,
+//       message: "Meditation session updated successfully",
+//       upsertedId: result.upsertedId,
+//       modifiedCount: result.modifiedCount,
+//     });
+//   } catch (error) {
+//     console.error("Error updating meditation session:", error);
+//     return NextResponse.json(
+//       { error: "Failed to update meditation session" },
+//       { status: 500 }
+//     );
+//   }
+// }

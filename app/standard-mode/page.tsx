@@ -211,29 +211,69 @@ export default function StandardModePage() {
     window.speechSynthesis.speak(utterance)
   }
 
+  // Get user weight from profile or use default (70kg)
+  const [userWeight, setUserWeight] = useState(70)
+
+  // Fetch user profile on component mount
+  useEffect(() => {
+    const fetchUserProfile = async () => {
+      try {
+        const response = await fetch('/api/user/profile')
+        if (response.ok) {
+          const data = await response.json()
+          if (data.weight) {
+            setUserWeight(data.weight)
+          }
+        }
+      } catch (error) {
+        console.error('Error fetching user profile:', error)
+      }
+    }
+
+    fetchUserProfile()
+  }, [])
+
   // Calculate calories burned with workout type consideration
   const calculateCalories = (exerciseName: string, durationMinutes: number, workoutCategory?: string) => {
-    const userWeight = 70 // Default weight in kg, should come from user profile
-    let met = 5.0 // Default MET value
+    // Default values
+    let met = 5.0 // Default MET value for light activity
     let category = workoutCategory || 'mixed'
+    let exerciseData = null
 
-    // Find MET value for exercise
-    Object.values(EXERCISE_LIBRARY).forEach(categoryExercises => {
-      const exercise = categoryExercises.find(ex => ex.name === exerciseName)
-      if (exercise) {
-        met = exercise.met
-        category = exercise.category
+    // Find exercise data including MET value and category
+    for (const [cat, exercises] of Object.entries(EXERCISE_LIBRARY)) {
+      const found = exercises.find(ex => ex.name === exerciseName)
+      if (found) {
+        exerciseData = found
+        category = cat
+        break
       }
-    })
+    }
 
-    // Apply workout type multiplier
+    // Use exercise-specific MET if available, otherwise use default
+    met = exerciseData?.met || met
+    
+    // Get multiplier for this workout type
     const multiplier = WORKOUT_TYPE_MULTIPLIERS[category as keyof typeof WORKOUT_TYPE_MULTIPLIERS] || 1.0
     
-    // Enhanced calorie calculation: MET * weight * duration * intensity multiplier
-    const baseCalories = (met * userWeight * durationMinutes) / 60
-    const adjustedCalories = baseCalories * multiplier
+    // Standard calorie calculation formula: (MET * 3.5 * weight in kg * duration in hours) / 200
+    const hours = durationMinutes / 60
+    const baseCalories = (met * 3.5 * userWeight * hours) / 200
     
-    return Math.round(adjustedCalories)
+    // Apply workout type multiplier and round to nearest integer
+    const adjustedCalories = Math.round(baseCalories * multiplier * 100) / 100 // Round to 2 decimal places
+    
+    return adjustedCalories > 0 ? adjustedCalories : 0
+  }
+
+  // Calculate total calories for all completed exercises
+  const calculateTotalCalories = (exercises: Exercise[]) => {
+    return exercises.reduce((total, exercise) => {
+      if (exercise.completed) {
+        return total + calculateCalories(exercise.name, exercise.durationMinutes)
+      }
+      return total
+    }, 0)
   }
 
   // Get all exercises as flat array for dropdown
@@ -332,29 +372,40 @@ export default function StandardModePage() {
     setCurrentPhase('completed')
     speak("Workout completed! Great job!")
 
-    // Save session to MongoDB (would be an API call)
+    // Recalculate total calories for all completed exercises
+    const totalCalories = calculateTotalCalories(exercises)
+    setCaloriesBurned(totalCalories)
+
+    // Save session to database
     saveWorkoutSession()
   }
 
   const saveWorkoutSession = async () => {
     if (!sessionStartTime) return
 
+    // Calculate actual duration in minutes
+    const endTime = new Date()
+    const durationMinutes = Math.round((endTime.getTime() - sessionStartTime.getTime()) / (1000 * 60))
+
     const session: WorkoutSession = {
-      userEmail: "user@example.com", // Should come from auth context
+      userEmail: "user@example.com", // TODO: Replace with actual user email from auth context
       sessionType,
-      title,
-      workoutType: workoutType || undefined,
-      totalDurationMinutes: exercises.reduce((sum, ex) => sum + ex.durationMinutes, 0),
+      title: title || `${workoutType || 'Custom'} Workout`,
+      workoutType: workoutType || 'mixed',
+      totalDurationMinutes: durationMinutes,
       startTime: sessionStartTime,
-      endTime: new Date(),
-      caloriesBurned,
+      endTime,
+      caloriesBurned: calculateTotalCalories(exercises),
       restDurationSeconds: restDuration,
       intervalType,
-      exercises,
+      exercises: exercises.map(ex => ({
+        ...ex,
+        caloriesBurned: calculateCalories(ex.name, ex.durationMinutes)
+      })),
       breaks,
       voiceGuidanceUsed: isVoiceEnabled,
       aiMotivationPhrases: motivationPhrasesUsed,
-      notes: ""
+      notes: `Completed ${exercises.filter(e => e.completed).length} of ${exercises.length} exercises`
     }
 
     try {
