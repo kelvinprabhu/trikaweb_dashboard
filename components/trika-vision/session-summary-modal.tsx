@@ -7,14 +7,43 @@ import { Badge } from "@/components/ui/badge"
 import { Progress } from "@/components/ui/progress"
 import { ScrollArea } from "@/components/ui/scroll-area"
 
+interface SessionData {
+  workoutType: string;
+  duration: number;
+  reps: number;
+  accuracy: number;
+  corrections: string[];
+  pace: string;
+  completedAt: string;
+  sessionSummary?: {
+    session_duration: number;
+    total_frames: number;
+    exercises_performed: number;
+    exercise_details: {
+      [key: string]: {
+        total_reps: number;
+        duration: number;
+        best_form_score: number;
+      };
+    };
+  };
+  exerciseConfidence?: number;
+  landmarksDetected?: boolean;
+  frameCount?: number;
+}
+
 interface SessionSummaryModalProps {
   isOpen: boolean
   onClose: () => void
-  sessionData: any
+  sessionData: SessionData | null
 }
 
 export function SessionSummaryModal({ isOpen, onClose, sessionData }: SessionSummaryModalProps) {
   if (!isOpen || !sessionData) return null
+
+  // Use WebSocket session summary if available, otherwise fall back to local data
+  const summary = sessionData.sessionSummary;
+  const hasWebSocketData = !!summary;
 
   const formatTime = (seconds: number) => {
     const mins = Math.floor(seconds / 60)
@@ -36,14 +65,32 @@ export function SessionSummaryModal({ isOpen, onClose, sessionData }: SessionSum
     return { text: "Needs Work", color: "bg-red-100 text-red-800 border-red-200" }
   }
 
-  const accuracyBadge = getAccuracyBadge(sessionData.accuracy)
+  const finalAccuracy = hasWebSocketData && summary ? 
+    Math.max(...Object.values(summary.exercise_details).map(detail => detail.best_form_score * 100)) : 
+    sessionData.accuracy;
+  const accuracyBadge = getAccuracyBadge(finalAccuracy);
 
   const getPerformanceMessage = () => {
-    if (sessionData.accuracy >= 90) return "Outstanding performance! Your form was excellent throughout the session."
-    if (sessionData.accuracy >= 80)
+    const accuracy = finalAccuracy;
+    if (accuracy >= 90) return "Outstanding performance! Your form was excellent throughout the session."
+    if (accuracy >= 80)
       return "Great job! Your form was consistently good with room for minor improvements."
-    if (sessionData.accuracy >= 70) return "Good effort! Focus on the corrections below to improve your form."
+    if (accuracy >= 70) return "Good effort! Focus on the corrections below to improve your form."
     return "Keep practicing! Review the feedback to enhance your technique in future sessions."
+  }
+
+  const getTotalReps = () => {
+    if (hasWebSocketData && summary) {
+      return Object.values(summary.exercise_details).reduce((total, detail) => total + detail.total_reps, 0);
+    }
+    return sessionData.reps;
+  }
+
+  const getSessionDuration = () => {
+    if (hasWebSocketData && summary) {
+      return summary.session_duration;
+    }
+    return sessionData.duration;
   }
 
   return (
@@ -78,7 +125,7 @@ export function SessionSummaryModal({ isOpen, onClose, sessionData }: SessionSum
               <Card className="border-green-200 shadow-sm">
                 <CardContent className="p-4 text-center">
                   <Clock className="w-8 h-8 text-green-500 mx-auto mb-3" />
-                  <p className="text-2xl font-bold text-green-600 mb-1">{formatTime(sessionData.duration)}</p>
+                  <p className="text-2xl font-bold text-green-600 mb-1">{formatTime(getSessionDuration())}</p>
                   <p className="text-sm font-medium text-gray-600">Duration</p>
                 </CardContent>
               </Card>
@@ -86,7 +133,7 @@ export function SessionSummaryModal({ isOpen, onClose, sessionData }: SessionSum
               <Card className="border-blue-200 shadow-sm">
                 <CardContent className="p-4 text-center">
                   <Target className="w-8 h-8 text-blue-500 mx-auto mb-3" />
-                  <p className="text-2xl font-bold text-blue-600 mb-1">{sessionData.reps}</p>
+                  <p className="text-2xl font-bold text-blue-600 mb-1">{getTotalReps()}</p>
                   <p className="text-sm font-medium text-gray-600">Reps</p>
                 </CardContent>
               </Card>
@@ -94,8 +141,8 @@ export function SessionSummaryModal({ isOpen, onClose, sessionData }: SessionSum
               <Card className="border-purple-200 shadow-sm">
                 <CardContent className="p-4 text-center">
                   <TrendingUp className="w-8 h-8 text-purple-500 mx-auto mb-3" />
-                  <p className={`text-2xl font-bold mb-1 ${getAccuracyColor(sessionData.accuracy)}`}>
-                    {sessionData.accuracy.toFixed(0)}%
+                  <p className={`text-2xl font-bold mb-1 ${getAccuracyColor(finalAccuracy)}`}>
+                    {finalAccuracy.toFixed(0)}%
                   </p>
                   <p className="text-sm font-medium text-gray-600">Accuracy</p>
                 </CardContent>
@@ -122,7 +169,7 @@ export function SessionSummaryModal({ isOpen, onClose, sessionData }: SessionSum
                 <div className="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
                   <span className="font-semibold text-gray-900">Overall Form Score</span>
                   <div className="flex items-center gap-4">
-                    <Progress value={sessionData.accuracy} className="w-32 h-3" />
+                    <Progress value={finalAccuracy} className="w-32 h-3" />
                     <Badge className={accuracyBadge.color}>{accuracyBadge.text}</Badge>
                   </div>
                 </div>
@@ -191,6 +238,69 @@ export function SessionSummaryModal({ isOpen, onClose, sessionData }: SessionSum
                       ))}
                     </div>
                   </ScrollArea>
+                </CardContent>
+              </Card>
+            )}
+
+            {/* WebSocket Session Details */}
+            {hasWebSocketData && summary && (
+              <Card className="border-indigo-200 shadow-sm">
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-3 text-xl">
+                    <TrendingUp className="w-6 h-6 text-indigo-500" />
+                    Detailed Session Analysis
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <div className="text-center p-4 bg-indigo-50 rounded-lg">
+                      <p className="text-2xl font-bold text-indigo-600">{summary.total_frames}</p>
+                      <p className="text-sm text-gray-600">Total Frames</p>
+                    </div>
+                    <div className="text-center p-4 bg-purple-50 rounded-lg">
+                      <p className="text-2xl font-bold text-purple-600">{summary.exercises_performed}</p>
+                      <p className="text-sm text-gray-600">Exercises</p>
+                    </div>
+                    <div className="text-center p-4 bg-blue-50 rounded-lg">
+                      <p className="text-2xl font-bold text-blue-600">{sessionData.frameCount || 0}</p>
+                      <p className="text-sm text-gray-600">Processed Frames</p>
+                    </div>
+                  </div>
+
+                  {/* Exercise Details */}
+                  <div className="space-y-3">
+                    <h4 className="font-semibold text-gray-900">Exercise Breakdown</h4>
+                    {Object.entries(summary.exercise_details).map(([exercise, details]) => (
+                      <div key={exercise} className="p-4 bg-gray-50 rounded-lg">
+                        <div className="flex items-center justify-between mb-2">
+                          <h5 className="font-medium text-gray-900 capitalize">{exercise}</h5>
+                          <Badge className="bg-green-100 text-green-800">
+                            {(details.best_form_score * 100).toFixed(0)}% Best Form
+                          </Badge>
+                        </div>
+                        <div className="grid grid-cols-2 gap-4 text-sm text-gray-600">
+                          <div>Reps: <span className="font-medium">{details.total_reps}</span></div>
+                          <div>Duration: <span className="font-medium">{formatTime(details.duration)}</span></div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+
+                  {/* Additional WebSocket Data */}
+                  <div className="grid grid-cols-2 gap-4 pt-4 border-t">
+                    <div className="flex items-center justify-between">
+                      <span className="text-sm font-medium text-gray-700">Landmarks Detection</span>
+                      <Badge className={sessionData.landmarksDetected ? "bg-green-100 text-green-800" : "bg-red-100 text-red-800"}>
+                        {sessionData.landmarksDetected ? "Active" : "Inactive"}
+                      </Badge>
+                    </div>
+                    <div className="flex items-center justify-between">
+                      <span className="text-sm font-medium text-gray-700">Exercise Confidence</span>
+                      <Badge className="bg-blue-100 text-blue-800">
+                        {sessionData.exerciseConfidence ? (sessionData.exerciseConfidence * 100).toFixed(0) : 0}%
+                      </Badge>
+                    </div>
+                  </div>
                 </CardContent>
               </Card>
             )}

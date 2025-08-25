@@ -440,7 +440,7 @@ export function MeditationContent({ email }: { email: string }) {
   const fetchCustomSessions = async () => {
     try {
       setLoadingCustomSessions(true)
-      const response = await fetch(`/api/meditation/custom-session?userEmail=${email}`)
+      const response = await fetch(`/api/meditation/custom-session/add?userEmail=${email}`)
       const data = await response.json()
 
       if (data.success) {
@@ -578,7 +578,7 @@ export function MeditationContent({ email }: { email: string }) {
       setCustomSessionProgress(0)
       setCustomCurrentTime(0)
 
-      alert('Custom meditation session completed! 🧘‍♀️')
+      console.log('Custom meditation session completed! 🧘‍♀️')
     } catch (error) {
       console.error('Error completing custom session:', error)
     }
@@ -637,8 +637,8 @@ export function MeditationContent({ email }: { email: string }) {
       setGeneratingSession(true)
       console.log("Creating custom meditation session:", data)
 
-      // Call our custom session API with user email
-      const response = await fetch('/api/meditation/custom-session', {
+      // POST to the correct backend route
+      const response = await fetch('/api/meditation/custom-session/add', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -653,22 +653,14 @@ export function MeditationContent({ email }: { email: string }) {
 
       if (result.success) {
         console.log("Custom meditation session created successfully:", result)
-
-        // Refresh custom sessions list
         await fetchCustomSessions()
-
-        // Refresh stats
         await fetchMeditationStats()
-
-        // Show success message or redirect to player
-        alert(`Custom meditation session "${data.sessionName}" created successfully! You can now play it from the Custom Sessions tab.`)
+        console.log(`Custom meditation session "${data.sessionName}" created successfully! You can now play it from the Custom Sessions tab.`)
       } else {
-        console.error("Failed to create custom session:", result.error)
-        alert(`Failed to create custom meditation session: ${result.error}`)
+        console.error("Failed to create custom meditation session:", result.error)
       }
     } catch (error) {
       console.error('Error creating custom meditation session:', error)
-      alert('Failed to create custom meditation session. Please try again.')
     } finally {
       setGeneratingSession(false)
       setShowMoodMeditationModal(false)
@@ -1303,13 +1295,12 @@ export function MeditationContent({ email }: { email: string }) {
                                     await fetchCustomSessions()
                                     // Refresh stats
                                     await fetchMeditationStats()
-                                    alert('Custom session deleted successfully!')
+                                    console.log('Custom session deleted successfully!')
                                   } else {
-                                    alert(`Failed to delete session: ${result.error}`)
+                                    console.error(`Failed to delete session: ${result.error}`)
                                   }
                                 } catch (error) {
                                   console.error('Error deleting session:', error)
-                                  alert('Failed to delete session. Please try again.')
                                 }
                               }
                             }}

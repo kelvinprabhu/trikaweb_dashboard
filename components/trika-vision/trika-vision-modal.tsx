@@ -1,16 +1,17 @@
 "use client"
 
 import { useState, useEffect, useRef } from "react";
+import { useRouter } from "next/navigation";
 import {
-  X, Camera as CameraIcon, Play, Pause, Square, Eye, Activity, 
-  Timer, Target, Minimize2, Maximize2, History, RotateCcw
+  X, Camera as CameraIcon, Play, Pause, Square, Eye, Activity,
+  Timer, Target, Minimize2, Maximize2, History, RotateCcw, Home
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { usePoseDetection } from "./usePoseDetection";
+import { useWorkoutWebSocket } from "./useWorkoutWebSocket";
 
 interface TrikaVisionModalProps {
   isOpen: boolean;
@@ -25,95 +26,60 @@ interface WorkoutLogEntry {
   duration: number;
   timestamp: Date;
   type: "exercise" | "rest";
-}
-
-interface Landmark {
-  x: number;
-  y: number;
-  z: number;
-  visibility: number;
-  active: boolean;
+  confidence: number;
 }
 
 export function TrikaVisionModal({
   isOpen,
   onClose,
   onSessionComplete,
-  workoutType = "Push-Up",
+  workoutType = "General Workout",
 }: TrikaVisionModalProps) {
-  // State management
+  // State management - Only camera and UI states, everything else from WebSocket
   const [isRecording, setIsRecording] = useState(false);
   const [isMinimized, setIsMinimized] = useState(false);
-  const [sessionTime, setSessionTime] = useState(0);
-  const [repCount, setRepCount] = useState(0);
-  const [currentFeedback, setCurrentFeedback] = useState("Click start to begin workout");
-  const [corrections, setCorrections] = useState<string[]>([]);
-  const [accuracy, setAccuracy] = useState(85);
-  const [pace, setPace] = useState("Good");
   const [countdown, setCountdown] = useState(0);
   const [cameraStream, setCameraStream] = useState<MediaStream | null>(null);
   const [cameraError, setCameraError] = useState("");
-  const [detectedLandmarks, setDetectedLandmarks] = useState<Landmark[]>([]);
-  const [workoutConfig, setWorkoutConfig] = useState<any>(null);
-  const [isConnected, setIsConnected] = useState(false);
   const [workoutLog, setWorkoutLog] = useState<WorkoutLogEntry[]>([]);
+  const [sessionStartTime, setSessionStartTime] = useState<Date | null>(null);
+  const [sessionEnded, setSessionEnded] = useState(false);
+
+  const router = useRouter();
 
   // Refs
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
-  const socketRef = useRef<WebSocket | null>(null);
 
-  // Pose detection hook
-  const poseRef = usePoseDetection(videoRef, (results: any) => {
-    if (results.poseLandmarks) {
-      const landmarks = extractRelevantLandmarks(results.poseLandmarks);
-      setDetectedLandmarks(landmarks);
-    }
-  });
+  // WebSocket hook - This provides ALL workout data
+  const wsUrl = process.env.NEXT_PUBLIC_WEB_SOCKET_URL || "ws://127.0.0.1:8000/ws/posture/";
+  const {
+    socket,
+    isConnected,
+    error,
+    isModelLoaded,
+    supportedExercises,
+    currentExercise,
+    exerciseConfidence,
+    feedback,
+    angle,
+    reps,
+    landmarksDetected,
+    formColor,
+    sessionTime: wsSessionTime,
+    frameCount,
+    sessionSummary,
+    resetSession,
+    getSessionSummary,
+    sendMessage,
+    testConnection,
+  } = useWorkoutWebSocket(wsUrl, videoRef, (data) => {
+    // Debug callback to log all WebSocket messages
+    console.log('📨 WebSocket message received:', data.type, data.payload);
+  }, isOpen);
 
-  // WebSocket connection
-  useEffect(() => {
-    if (!isOpen) return;
-
-    const wsUrl = process.env.NEXT_PUBLIC_WEB_SOCKET_URL || "ws://127.0.0.1:8000/ws/posture/";
-    const ws = new WebSocket(wsUrl);
-
-    ws.onopen = () => {
-      setIsConnected(true);
-      console.log("WebSocket connected");
-    };
-
-    ws.onmessage = (event) => {
-      const data = JSON.parse(event.data);
-      if (data.type === 'workout') {
-        setWorkoutConfig(data.payload);
-      } else if (data.type === 'feedback') {
-        setCurrentFeedback(data.payload.message);
-        if (data.payload.isRep) {
-          setRepCount(prev => prev + 1);
-        }
-        if (data.payload.needsCorrection) {
-          setCorrections(prev => [...prev, data.payload.message]);
-        }
-        setAccuracy(data.payload.accuracy);
-      }
-    };
-
-    ws.onclose = () => {
-      setIsConnected(false);
-      console.log("WebSocket disconnected");
-    };
-
-    ws.onerror = (error) => {
-      console.error("WebSocket error:", error);
-    };
-
-    socketRef.current = ws;
-
-    return () => {
-      ws.close();
-    };
-  }, [isOpen]);
+  // Calculate session duration from WebSocket session time or local tracking
+  const sessionDuration = wsSessionTime || (sessionStartTime ? Math.floor((Date.now() - sessionStartTime.getTime()) / 1000) : 0);
 
   // Initialize camera when modal opens
   useEffect(() => {
@@ -124,22 +90,8 @@ export function TrikaVisionModal({
       if (cameraStream) {
         cameraStream.getTracks().forEach((track) => track.stop());
       }
-      if (poseRef.current) {
-        poseRef.current.close();
-      }
     };
   }, [isOpen, isMinimized]);
-
-  // Timer effect
-  useEffect(() => {
-    let interval: NodeJS.Timeout;
-    if (isRecording) {
-      interval = setInterval(() => {
-        setSessionTime((prev) => prev + 1);
-      }, 1000);
-    }
-    return () => clearInterval(interval);
-  }, [isRecording]);
 
   // Countdown effect
   useEffect(() => {
@@ -149,7 +101,7 @@ export function TrikaVisionModal({
         setCountdown((prev) => {
           if (prev === 1) {
             setIsRecording(true);
-            setCurrentFeedback("Session started! Begin your workout");
+            setSessionStartTime(new Date());
             return 0;
           }
           return prev - 1;
@@ -159,50 +111,77 @@ export function TrikaVisionModal({
     return () => clearInterval(interval);
   }, [countdown]);
 
-  // Workout configuration effect
+  // Track exercise changes and add to workout log
   useEffect(() => {
-    if (workoutConfig) {
-      // workoutType is a prop and cannot be set directly
-      setCurrentFeedback(workoutConfig.instructions);
-    }
-  }, [workoutConfig]);
+    if (currentExercise && isRecording && exerciseConfidence > 0.5) {
+      // Check if this is a new exercise or significant confidence change
+      const lastLogEntry = workoutLog[0];
+      const shouldCreateNewEntry = !lastLogEntry ||
+        lastLogEntry.activity !== currentExercise ||
+        (Date.now() - lastLogEntry.timestamp.getTime()) > 30000; // 30 seconds gap
 
-  const extractRelevantLandmarks = (landmarks: any): Landmark[] => {
-    const RELEVANT_INDICES = [11, 12, 13, 14, 15, 16, 23, 24, 25, 26, 27, 28];
-    return RELEVANT_INDICES.map(index => ({
-      x: landmarks[index].x,
-      y: landmarks[index].y,
-      z: landmarks[index].z,
-      visibility: landmarks[index].visibility,
-      active: landmarks[index].visibility > 0.5
-    }));
-  };
+      if (shouldCreateNewEntry) {
+        const newLogEntry: WorkoutLogEntry = {
+          id: `${Date.now()}-${currentExercise}`,
+          activity: currentExercise,
+          duration: Math.floor(sessionDuration / 60),
+          timestamp: new Date(),
+          type: "exercise",
+          confidence: exerciseConfidence
+        };
+        setWorkoutLog((prev) => [newLogEntry, ...prev.slice(0, 9)]); // Keep last 10 entries
+      }
+    }
+  }, [currentExercise, exerciseConfidence, isRecording, sessionDuration]);
 
   const initializeCamera = async () => {
     try {
-      const stream = await navigator.mediaDevices.getUserMedia({
+      // Stop any existing stream first
+      if (cameraStream) {
+        cameraStream.getTracks().forEach(track => track.stop());
+      }
+
+      const constraints: MediaStreamConstraints = {
         video: {
-          width: { ideal: 1280 },
-          height: { ideal: 720 },
+          width: { ideal: 1280, min: 640 },
+          height: { ideal: 720, min: 480 },
+          frameRate: { ideal: 30, min: 15 },
           facingMode: "user",
         },
-      });
+        audio: false
+      };
+
+      const stream = await navigator.mediaDevices.getUserMedia(constraints);
       setCameraStream(stream);
       setCameraError("");
 
       if (videoRef.current) {
-        videoRef.current.srcObject = stream;
+        const video = videoRef.current;
+        video.srcObject = stream;
+
+        await new Promise((resolve) => {
+          video.onloadedmetadata = () => {
+            video.play().then(resolve).catch(err => {
+              console.error('Error playing video:', err);
+              setCameraError('Failed to start camera. Please ensure no other application is using the camera.');
+              resolve(null);
+            });
+          };
+        });
       }
 
-      if (socketRef.current?.readyState === WebSocket.OPEN) {
-        socketRef.current.send(JSON.stringify({
-          type: 'camera_ready',
-          payload: true
-        }));
+      // Notify WebSocket that camera is ready
+      if (socket && socket.readyState === WebSocket.OPEN) {
+        sendMessage('camera_ready', {
+          width: videoRef.current?.videoWidth || 1280,
+          height: videoRef.current?.videoHeight || 720,
+          frameRate: 30
+        });
       }
     } catch (error) {
       console.error("Camera access failed:", error);
-      setCameraError("Camera access denied. Please enable camera permissions and refresh.");
+      const errorMessage = error instanceof Error ? error.message : 'Failed to access camera';
+      setCameraError(`Camera error: ${errorMessage}. Please check permissions and try again.`);
     }
   };
 
@@ -213,72 +192,79 @@ export function TrikaVisionModal({
 
     if (cameraStream) {
       setCountdown(3);
-      setCurrentFeedback("Get ready! Starting in...");
+      setSessionStartTime(new Date());
 
-      const newLogEntry: WorkoutLogEntry = {
-        id: Date.now().toString(),
-        activity: workoutType,
-        duration: 0,
-        timestamp: new Date(),
-        type: "exercise",
-      };
-      setWorkoutLog((prev) => [newLogEntry, ...prev]);
-
-      if (socketRef.current?.readyState === WebSocket.OPEN) {
-        socketRef.current.send(JSON.stringify({
-          type: 'start_workout',
-          payload: { workoutType }
-        }));
+      if (socket && socket.readyState === WebSocket.OPEN) {
+        sendMessage('start_workout', {
+          workoutType: currentExercise || workoutType,
+          timestamp: new Date().toISOString()
+        });
       }
     }
   };
 
   const pauseSession = () => {
     setIsRecording(false);
-    setCurrentFeedback("Session paused - Click resume to continue");
+    if (socket && socket.readyState === WebSocket.OPEN) {
+      sendMessage('pause_workout', {
+        timestamp: new Date().toISOString(),
+        sessionDuration
+      });
+    }
   };
 
   const resumeSession = () => {
     setIsRecording(true);
-    setCurrentFeedback("Session resumed! Continue your workout");
+    if (socket && socket.readyState === WebSocket.OPEN) {
+      sendMessage('resume_workout', {
+        timestamp: new Date().toISOString()
+      });
+    }
   };
 
   const endSession = () => {
     setIsRecording(false);
     setCountdown(0);
+    setSessionEnded(true);
 
-    setWorkoutLog((prev) =>
-      prev.map((entry, index) => (index === 0 ? { ...entry, duration: Math.floor(sessionTime / 60) } : entry)),
-    );
-
+    // Create session data from WebSocket state
     const sessionData = {
       workoutType,
-      duration: sessionTime,
-      reps: repCount,
-      accuracy,
-      corrections: corrections.slice(-5),
-      pace,
-      completedAt: new Date().toISOString(),
+      duration: sessionDuration,
+      exercises: currentExercise ? [currentExercise] : [],
+      totalReps: reps,
+      averageConfidence: exerciseConfidence,
+      feedback: feedback,
+      sessionSummary: sessionSummary,
+      timestamp: new Date(),
+      workoutLog: workoutLog.slice(0, 5), // Include recent exercises
     };
+
     onSessionComplete(sessionData);
 
-    if (socketRef.current?.readyState === WebSocket.OPEN) {
-      socketRef.current.send(JSON.stringify({
-        type: 'end_workout',
-        payload: sessionData
-      }));
+    if (socket && socket.readyState === WebSocket.OPEN) {
+      sendMessage('end_workout', sessionData);
     }
+
+    // Get final session summary
+    setTimeout(() => {
+      getSessionSummary();
+    }, 1000);
   };
 
-  const resetSession = () => {
+  const viewDashboard = () => {
+    // Close the modal first
+    onClose();
+    // Navigate to dashboard (root path)
+    router.push('/');
+  };
+
+  const resetWorkoutSession = () => {
     setIsRecording(false);
     setCountdown(0);
-    setSessionTime(0);
-    setRepCount(0);
-    setCorrections([]);
-    setCurrentFeedback("Click start to begin workout");
-    setAccuracy(85);
-    setPace("Good");
+    setWorkoutLog([]);
+    setSessionStartTime(null);
+    resetSession(); // WebSocket reset
   };
 
   const formatTime = (seconds: number) => {
@@ -290,6 +276,30 @@ export function TrikaVisionModal({
   const formatLogTime = (minutes: number) => {
     if (minutes < 1) return "< 1 min";
     return `${minutes} min${minutes !== 1 ? "s" : ""}`;
+  };
+
+  const getFormColorStyle = () => {
+    if (!formColor) return "rgb(255, 255, 255)";
+    if (Array.isArray(formColor)) {
+      return `rgb(${formColor[0]}, ${formColor[1]}, ${formColor[2]})`;
+    }
+    return `rgb(${formColor.r}, ${formColor.g}, ${formColor.b})`;
+  };
+
+  const getConfidenceColor = (confidence: number) => {
+    if (confidence >= 0.8) return "bg-green-100 text-green-700 border-green-200";
+    if (confidence >= 0.6) return "bg-yellow-100 text-yellow-700 border-yellow-200";
+    return "bg-red-100 text-red-700 border-red-200";
+  };
+
+  const getCurrentFeedback = () => {
+    if (!isConnected) return "Connecting to AI trainer...";
+    if (!isModelLoaded) return "Loading AI model...";
+    if (!landmarksDetected && isRecording) return "Please ensure you're visible in the camera";
+    if (countdown > 0) return `Get ready! Starting in ${countdown}...`;
+    if (!isRecording && sessionDuration === 0) return "Click start to begin your AI-guided workout";
+    if (!isRecording) return "Session paused - Click resume to continue";
+    return feedback || "Analyzing your movement...";
   };
 
   const toggleMinimize = () => {
@@ -311,9 +321,8 @@ export function TrikaVisionModal({
   return (
     <div className="fixed inset-0 bg-black/95 backdrop-blur-sm z-50">
       <div
-        className={`bg-white transition-all duration-300 ${
-          isMinimized ? "absolute top-4 right-4 w-96 h-64 rounded-2xl shadow-2xl" : "w-full h-full"
-        } flex flex-col overflow-hidden`}
+        className={`bg-white transition-all duration-300 ${isMinimized ? "absolute top-4 right-4 w-96 h-64 rounded-2xl shadow-2xl" : "w-full h-full"
+          } flex flex-col overflow-hidden`}
       >
         {/* Header */}
         <div className="flex items-center justify-between p-6 border-b bg-gradient-to-r from-blue-50 to-indigo-50 flex-shrink-0">
@@ -349,12 +358,16 @@ export function TrikaVisionModal({
                 className="absolute inset-0 w-full h-full object-cover"
               />
 
-              {/* Canvas for pose drawing */}
+              {/* Canvas for drawing (optional overlay) */}
               <canvas
                 ref={canvasRef}
-                className="absolute inset-0 w-full h-full"
+                className="absolute inset-0 w-full h-full pointer-events-none"
                 width={1280}
                 height={720}
+                style={{
+                  border: landmarksDetected ? `3px solid ${getFormColorStyle()}` : 'none',
+                  transition: 'border-color 0.3s ease'
+                }}
               />
 
               {/* Fallback when no camera */}
@@ -391,40 +404,6 @@ export function TrikaVisionModal({
                 </div>
               )}
 
-              {/* Pose Detection Overlay */}
-              {isRecording && cameraStream && detectedLandmarks.length > 0 && (
-                <div className="absolute inset-0">
-                  {detectedLandmarks.map((point, index) => (
-                    <div
-                      key={index}
-                      className={`absolute w-4 h-4 rounded-full transform -translate-x-1/2 -translate-y-1/2 ${
-                        point.active
-                          ? "bg-blue-400 shadow-lg shadow-blue-400/50"
-                          : "bg-red-400 shadow-lg shadow-red-400/50"
-                      }`}
-                      style={{ 
-                        left: `${point.x * 100}%`, 
-                        top: `${point.y * 100}%` 
-                      }}
-                    />
-                  ))}
-
-                  {/* Skeleton Lines */}
-                  <svg className="absolute inset-0 w-full h-full">
-                    {/* Shoulder line */}
-                    <line 
-                      x1={`${detectedLandmarks[0]?.x * 100}%`} 
-                      y1={`${detectedLandmarks[0]?.y * 100}%`} 
-                      x2={`${detectedLandmarks[1]?.x * 100}%`} 
-                      y2={`${detectedLandmarks[1]?.y * 100}%`} 
-                      stroke="rgba(59, 130, 246, 0.8)" 
-                      strokeWidth="3" 
-                    />
-                    {/* Add more connections as needed */}
-                  </svg>
-                </div>
-              )}
-
               {/* Recording Indicator */}
               {isRecording && (
                 <div className="absolute top-6 left-6 flex items-center gap-3 bg-red-500 text-white px-4 py-2 rounded-full shadow-lg">
@@ -434,19 +413,71 @@ export function TrikaVisionModal({
               )}
 
               {/* Connection Status */}
-              <div className={`absolute top-6 left-32 flex items-center gap-2 px-3 py-1 rounded-full ${
-                isConnected ? 'bg-green-500' : 'bg-yellow-500'
-              } text-white`}>
-                <div className="w-2 h-2 bg-white rounded-full animate-pulse" />
+              <div
+                className={`absolute top-6 left-32 flex items-center gap-2 px-3 py-1 rounded-full ${isConnected && isModelLoaded
+                    ? 'bg-green-500'
+                    : error
+                      ? 'bg-red-500'
+                      : isConnected
+                        ? 'bg-yellow-500'
+                        : 'bg-gray-500'
+                  } text-white transition-colors duration-300`}
+                title={
+                  error
+                    ? `Error: ${error}`
+                    : isConnected && isModelLoaded
+                      ? `AI Model Ready - ${supportedExercises} exercises supported`
+                      : isConnected
+                        ? 'Connected, loading AI model...'
+                        : 'Connecting to server...'
+                }
+              >
+                <div className={`w-2 h-2 rounded-full ${isConnected && isModelLoaded ? 'bg-white' : 'bg-white/70'
+                  } ${!isConnected || !isModelLoaded ? 'animate-pulse' : ''}`} />
                 <span className="text-sm font-semibold">
-                  {isConnected ? 'CONNECTED' : 'CONNECTING...'}
+                  {error ? 'CONNECTION ERROR' :
+                    isConnected && isModelLoaded ? 'AI READY' :
+                      isConnected ? 'LOADING AI...' : 'CONNECTING...'}
                 </span>
+                {error && (
+                  <div className="ml-2 flex gap-1">
+                    <button
+                      onClick={async () => {
+                        console.log('🧪 Testing WebSocket connection...', { isConnected, isModelLoaded, supportedExercises });
+                        const result = await testConnection();
+                        console.log('Test result:', result);
+                      }}
+                      className="text-xs bg-white/20 hover:bg-white/30 rounded px-2 py-0.5"
+                      title="Test connection"
+                    >
+                      Test
+                    </button>
+                    <button
+                      onClick={() => window.location.reload()}
+                      className="text-xs bg-white/20 hover:bg-white/30 rounded px-2 py-0.5"
+                      title="Reload page"
+                    >
+                      Reload
+                    </button>
+                  </div>
+                )}
               </div>
 
               {/* Session Timer */}
-              {(isRecording || sessionTime > 0) && (
+              {(isRecording || sessionDuration > 0) && (
                 <div className="absolute top-6 right-6 bg-black/70 text-white px-4 py-2 rounded-full backdrop-blur-sm">
-                  <span className="font-mono text-lg font-bold">{formatTime(sessionTime)}</span>
+                  <span className="font-mono text-lg font-bold">{formatTime(sessionDuration)}</span>
+                </div>
+              )}
+
+              {/* Current Exercise Display */}
+              {currentExercise && isRecording && (
+                <div className="absolute top-20 right-6 bg-black/70 text-white px-4 py-2 rounded-lg backdrop-blur-sm">
+                  <p className="text-sm font-medium">{currentExercise}</p>
+                  <div className="flex items-center gap-2 mt-1">
+                    <span className="text-xs">Confidence:</span>
+                    <span className="text-xs font-bold">{Math.round(exerciseConfidence * 100)}%</span>
+                  </div>
                 </div>
               )}
 
@@ -456,7 +487,8 @@ export function TrikaVisionModal({
                   <Button
                     onClick={startSession}
                     size="lg"
-                    className="bg-gradient-to-r from-blue-500 to-indigo-600 hover:from-blue-600 hover:to-indigo-700 text-white px-10 py-4 rounded-full shadow-xl text-lg font-semibold"
+                    disabled={!isConnected || !isModelLoaded}
+                    className="bg-gradient-to-r from-blue-500 to-indigo-600 hover:from-blue-600 hover:to-indigo-700 text-white px-10 py-4 rounded-full shadow-xl text-lg font-semibold disabled:opacity-50"
                   >
                     <Play className="w-6 h-6 mr-3" />
                     Start Session
@@ -481,7 +513,7 @@ export function TrikaVisionModal({
                       End Session
                     </Button>
                     <Button
-                      onClick={resetSession}
+                      onClick={resetWorkoutSession}
                       variant="outline"
                       size="lg"
                       className="bg-white/95 backdrop-blur-sm px-8 py-4 rounded-full shadow-lg border-2 hover:bg-white"
@@ -490,7 +522,7 @@ export function TrikaVisionModal({
                       Reset
                     </Button>
                   </div>
-                ) : sessionTime > 0 ? (
+                ) : sessionDuration > 0 && !sessionEnded ? (
                   <Button
                     onClick={resumeSession}
                     size="lg"
@@ -499,11 +531,31 @@ export function TrikaVisionModal({
                     <Play className="w-6 h-6 mr-3" />
                     Resume
                   </Button>
+                ) : sessionEnded ? (
+                  <div className="flex items-center gap-4">
+                    <Button
+                      onClick={viewDashboard}
+                      size="lg"
+                      className="bg-gradient-to-r from-blue-500 to-indigo-600 hover:from-blue-600 hover:to-indigo-700 text-white px-10 py-4 rounded-full shadow-xl text-lg font-semibold"
+                    >
+                      <Home className="w-6 h-6 mr-3" />
+                      View Dashboard
+                    </Button>
+                    <Button
+                      onClick={resetWorkoutSession}
+                      variant="outline"
+                      size="lg"
+                      className="bg-white/95 backdrop-blur-sm px-8 py-4 rounded-full shadow-lg border-2 hover:bg-white"
+                    >
+                      <RotateCcw className="w-5 h-5 mr-2" />
+                      New Session
+                    </Button>
+                  </div>
                 ) : null}
               </div>
             </div>
 
-            {/* Stats Panel */}
+            {/* Stats Panel - All data from WebSocket */}
             <div className="w-96 bg-gradient-to-b from-blue-50 to-indigo-50 border-l border-blue-200 flex flex-col">
               <ScrollArea className="flex-1 p-6">
                 <div className="space-y-6">
@@ -514,9 +566,13 @@ export function TrikaVisionModal({
                         <Target className="w-5 h-5 text-blue-500" />
                         <h3 className="font-semibold text-gray-900">Current Workout</h3>
                       </div>
-                      <p className="text-lg font-bold text-gray-900 mb-2">{workoutType}</p>
+                      <p className="text-lg font-bold text-gray-900 mb-2">
+                        {currentExercise || workoutType}
+                      </p>
                       <div className="flex gap-2">
-                        <Badge className="bg-blue-100 text-blue-700 border-blue-200">AI Guided</Badge>
+                        <Badge className={getConfidenceColor(exerciseConfidence)}>
+                          {currentExercise ? 'Detected' : 'Standby'}
+                        </Badge>
                         <Badge variant="outline" className="border-indigo-200 text-indigo-700">
                           Live Analysis
                         </Badge>
@@ -524,7 +580,7 @@ export function TrikaVisionModal({
                     </CardContent>
                   </Card>
 
-                  {/* Live Stats */}
+                  {/* Live Stats - All from WebSocket */}
                   <Card className="border-blue-200 shadow-sm">
                     <CardHeader className="pb-3">
                       <CardTitle className="flex items-center gap-3 text-lg">
@@ -535,36 +591,53 @@ export function TrikaVisionModal({
                     <CardContent className="space-y-4">
                       <div className="grid grid-cols-2 gap-4">
                         <div className="text-center p-3 bg-blue-50 rounded-lg border border-blue-100">
-                          <span className="text-2xl font-bold text-blue-600">{formatTime(sessionTime)}</span>
+                          <span className="text-2xl font-bold text-blue-600">
+                            {formatTime(sessionDuration)}
+                          </span>
                           <p className="text-xs text-blue-600 font-medium">Duration</p>
                         </div>
                         <div className="text-center p-3 bg-indigo-50 rounded-lg border border-indigo-100">
-                          <span className="text-2xl font-bold text-indigo-600">{repCount}</span>
+                          <span className="text-2xl font-bold text-indigo-600">{reps}</span>
                           <p className="text-xs text-indigo-600 font-medium">Reps</p>
                         </div>
                       </div>
 
                       <div className="space-y-2">
                         <div className="flex justify-between items-center">
-                          <span className="text-sm font-medium text-gray-700">Form Accuracy</span>
-                          <span className="font-bold text-blue-600">{accuracy.toFixed(0)}%</span>
+                          <span className="text-sm font-medium text-gray-700">Exercise Confidence</span>
+                          <span className="font-bold text-blue-600">
+                            {Math.round(exerciseConfidence * 100)}%
+                          </span>
                         </div>
-                        <Progress value={accuracy} className="h-3 bg-blue-100" />
+                        <Progress value={exerciseConfidence * 100} className="h-3 bg-blue-100" />
                       </div>
 
                       <div className="flex justify-between items-center">
-                        <span className="text-sm font-medium text-gray-700">Pace</span>
-                        <Badge
-                          variant={pace === "Good" ? "default" : "secondary"}
-                          className="bg-blue-100 text-blue-700"
-                        >
-                          {pace}
+                        <span className="text-sm font-medium">Landmarks</span>
+                        <Badge className={landmarksDetected ? "bg-green-100 text-green-700" : "bg-red-100 text-red-700"}>
+                          {landmarksDetected ? 'Detected' : 'Not Found'}
                         </Badge>
                       </div>
+
+                      <div className="flex justify-between items-center">
+                        <span className="text-sm font-medium">Frames Processed</span>
+                        <Badge className="bg-purple-100 text-purple-700">
+                          {frameCount}
+                        </Badge>
+                      </div>
+
+                      {angle > 0 && (
+                        <div className="flex justify-between items-center">
+                          <span className="text-sm font-medium">Joint Angle</span>
+                          <Badge className="bg-orange-100 text-orange-700">
+                            {Math.round(angle)}°
+                          </Badge>
+                        </div>
+                      )}
                     </CardContent>
                   </Card>
 
-                  {/* Real-time Feedback */}
+                  {/* Real-time Feedback - Direct from WebSocket */}
                   <Card className="border-blue-200 shadow-sm">
                     <CardHeader className="pb-3">
                       <CardTitle className="flex items-center gap-3 text-lg">
@@ -573,70 +646,68 @@ export function TrikaVisionModal({
                       </CardTitle>
                     </CardHeader>
                     <CardContent>
-                      <div className="bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-200 rounded-lg p-4">
-                        <p className="text-sm font-medium text-blue-800">{currentFeedback}</p>
+                      <div
+                        className="border border-blue-200 rounded-lg p-4 transition-colors duration-300"
+                        style={{
+                          backgroundColor: landmarksDetected ? '#f0f9ff' : '#fef3c7',
+                          borderColor: landmarksDetected ? '#bfdbfe' : '#fed7aa'
+                        }}
+                      >
+                        <p className="text-sm font-medium text-blue-800">
+                          {getCurrentFeedback()}
+                        </p>
                       </div>
                     </CardContent>
                   </Card>
 
-                  {/* Form Corrections */}
-                  {corrections.length > 0 && (
-                    <Card className="border-blue-200 shadow-sm">
-                      <CardHeader className="pb-3">
-                        <CardTitle className="flex items-center gap-3 text-lg">
-                          <Timer className="w-5 h-5 text-amber-500" />
-                          Recent Corrections
-                        </CardTitle>
-                      </CardHeader>
-                      <CardContent>
-                        <ScrollArea className="max-h-32">
-                          <div className="space-y-2">
-                            {corrections.slice(-5).map((correction, index) => (
-                              <div key={index} className="text-xs bg-amber-50 border border-amber-200 rounded-lg p-3">
-                                <span className="text-amber-800">{correction}</span>
-                              </div>
-                            ))}
-                          </div>
-                        </ScrollArea>
-                      </CardContent>
-                    </Card>
-                  )}
-
-                  {/* Workout Log History */}
+                  {/* Workout Log History - Based on exercise detection */}
                   <Card className="border-blue-200 shadow-sm">
                     <CardHeader className="pb-3">
                       <CardTitle className="flex items-center gap-3 text-lg">
                         <History className="w-5 h-5 text-blue-500" />
-                        Workout Log
+                        Detected Exercises
                       </CardTitle>
                     </CardHeader>
                     <CardContent>
                       <ScrollArea className="max-h-64">
-                        <div className="space-y-3">
-                          {workoutLog.map((entry) => (
-                            <div
-                              key={entry.id}
-                              className="flex items-center justify-between p-3 bg-white rounded-lg border border-blue-100 shadow-sm"
-                            >
-                              <div className="flex items-center gap-3">
-                                <div
-                                  className={`w-3 h-3 rounded-full ${
-                                    entry.type === "exercise" ? "bg-blue-500" : "bg-gray-400"
-                                  }`}
-                                />
-                                <div>
-                                  <p className="font-medium text-gray-900 text-sm">{entry.activity}</p>
-                                  <p className="text-xs text-gray-500">
-                                    {entry.timestamp.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
-                                  </p>
+                        {workoutLog.length > 0 ? (
+                          <div className="space-y-3">
+                            {workoutLog.map((entry) => (
+                              <div
+                                key={entry.id}
+                                className="flex items-center justify-between p-3 bg-white rounded-lg border border-blue-100 shadow-sm"
+                              >
+                                <div className="flex items-center gap-3">
+                                  <div
+                                    className={`w-3 h-3 rounded-full ${entry.confidence > 0.8
+                                        ? 'bg-green-500'
+                                        : entry.confidence > 0.6
+                                          ? 'bg-yellow-500'
+                                          : 'bg-red-500'
+                                      }`}
+                                  />
+                                  <div>
+                                    <p className="font-medium text-gray-900 text-sm">{entry.activity}</p>
+                                    <p className="text-xs text-gray-500">
+                                      {entry.timestamp.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
+                                    </p>
+                                  </div>
+                                </div>
+                                <div className="text-right">
+                                  <Badge variant="outline" className="text-xs">
+                                    {Math.round(entry.confidence * 100)}%
+                                  </Badge>
                                 </div>
                               </div>
-                              <Badge variant="outline" className="text-xs">
-                                {formatLogTime(entry.duration)}
-                              </Badge>
-                            </div>
-                          ))}
-                        </div>
+                            ))}
+                          </div>
+                        ) : (
+                          <div className="text-center py-8 text-gray-500">
+                            <Activity className="w-8 h-8 mx-auto mb-2 opacity-50" />
+                            <p className="text-sm">No exercises detected yet</p>
+                            <p className="text-xs mt-1">Start your workout to see real-time detection</p>
+                          </div>
+                        )}
                       </ScrollArea>
                     </CardContent>
                   </Card>
@@ -646,7 +717,7 @@ export function TrikaVisionModal({
           </div>
         )}
 
-        {/* Minimized View */}
+        {/* Minimized View - Using WebSocket data */}
         {isMinimized && (
           <div className="flex-1 p-6 flex flex-col justify-center">
             <div className="text-center space-y-4">
@@ -654,16 +725,26 @@ export function TrikaVisionModal({
                 <Eye className="w-8 h-8 text-white" />
               </div>
               <div>
-                <h3 className="font-bold text-gray-900">{workoutType}</h3>
+                <h3 className="font-bold text-gray-900">
+                  {currentExercise || workoutType}
+                </h3>
                 <p className="text-sm text-gray-600">
-                  {isRecording ? "Recording..." : countdown > 0 ? `Starting in ${countdown}...` : "Ready to start"}
+                  {isRecording
+                    ? "Recording..."
+                    : countdown > 0
+                      ? `Starting in ${countdown}...`
+                      : isConnected
+                        ? "Ready to start"
+                        : "Connecting..."}
                 </p>
               </div>
-              {(isRecording || sessionTime > 0) && (
+              {(isRecording || sessionDuration > 0) && (
                 <div className="space-y-2">
-                  <p className="font-mono text-lg font-bold text-blue-600">{formatTime(sessionTime)}</p>
+                  <p className="font-mono text-lg font-bold text-blue-600">
+                    {formatTime(sessionDuration)}
+                  </p>
                   <p className="text-sm text-gray-600">
-                    {repCount} reps • {accuracy.toFixed(0)}% accuracy
+                    {reps} reps • {Math.round(exerciseConfidence * 100)}% confidence
                   </p>
                 </div>
               )}
